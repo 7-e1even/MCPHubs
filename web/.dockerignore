@@ -1,0 +1,4 @@
+# web/.dockerignore
+node_modules
+.next
+.git

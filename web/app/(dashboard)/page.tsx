@@ -1,0 +1,357 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Server, Activity, Terminal, Globe, Copy, Check } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { fetchHealth, fetchServers, getSettings, isLoggedIn, type MCPServer, type HealthResponse } from "@/lib/api"
+import { useRouter } from "next/navigation"
+
+export default function DashboardPage() {
+  const router = useRouter()
+  const [health, setHealth] = useState<HealthResponse | null>(null)
+  const [servers, setServers] = useState<MCPServer[]>([])
+  const [loading, setLoading] = useState(true)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const [origin, setOrigin] = useState("")
+  const [apiKey, setApiKey] = useState("")
+
+  useEffect(() => {
+    if (!isLoggedIn()) {
+      router.push("/login")
+      return
+    }
+    setOrigin(window.location.origin)
+    async function load() {
+      try {
+        const [h, s] = await Promise.all([fetchHealth(), fetchServers()])
+        setHealth(h)
+        setServers(s)
+      } catch {
+        try {
+          const h = await fetchHealth()
+          setHealth(h)
+        } catch { /* ignore */ }
+      }
+      try {
+        const settings = await getSettings()
+        setApiKey(settings.api_key ?? "")
+      } catch { /* ignore */ }
+      setLoading(false)
+    }
+    load()
+  }, [router])
+
+  const stdioServers = servers.filter((s) => s.transport === "stdio")
+  const remoteServers = servers.filter((s) => s.transport !== "stdio")
+
+  const copyToClipboard = (text: string, key: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedKey(key)
+    setTimeout(() => setCopiedKey(null), 2000)
+  }
+
+  const mcpUrl = `${origin}/mcp`
+
+  // Build config objects, include auth headers if api_key is set
+  const buildServerEntry = () => {
+    const entry: Record<string, unknown> = {
+      type: "streamable-http",
+      url: mcpUrl,
+    }
+    if (apiKey) {
+      entry.headers = { Authorization: `Bearer ${apiKey}` }
+    }
+    return entry
+  }
+
+  const cursorConfig = JSON.stringify({
+    mcpServers: {
+      mcphubs: buildServerEntry()
+    }
+  }, null, 2)
+
+  const claudeConfig = JSON.stringify({
+    mcpServers: {
+      mcphubs: buildServerEntry()
+    }
+  }, null, 2)
+
+  const vscodeConfig = JSON.stringify({
+    mcp: {
+      servers: {
+        mcphubs: buildServerEntry()
+      }
+    }
+  }, null, 2)
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6 p-8">
+        <div>
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-80 mt-2" />
+        </div>
+        <Separator />
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-28" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-6 p-6">
+      {/* ─── Stats Cards ─── */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-2">
+        <Card className="hover:border-primary/50 transition-colors">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total Servers</CardTitle>
+            <Server className="size-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{health?.servers_count ?? servers.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Registered MCP servers
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="hover:border-primary/50 transition-colors">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Stdio Servers</CardTitle>
+            <Terminal className="size-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{stdioServers.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Local process-based
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="hover:border-primary/50 transition-colors">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Remote Servers</CardTitle>
+            <Globe className="size-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">{remoteServers.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              SSE / Streamable HTTP
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ─── Quick Connect ─── */}
+      <Card className="border-primary/20 bg-primary/5 shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-primary text-lg">
+            <Terminal className="size-5" />
+            Quick Connect
+          </CardTitle>
+          <CardDescription>
+            复制以下 JSON 配置到对应工具即可接入 McpHub 的所有 MCP Server。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="cursor" className="w-full">
+            <TabsList className="grid w-full sm:w-[480px] grid-cols-3">
+              <TabsTrigger value="cursor">Cursor / Windsurf</TabsTrigger>
+              <TabsTrigger value="claude">Claude Desktop</TabsTrigger>
+              <TabsTrigger value="vscode">VS Code</TabsTrigger>
+            </TabsList>
+            <div className="mt-4">
+              <TabsContent value="cursor" className="space-y-3 m-0">
+                <p className="text-sm text-muted-foreground">
+                  打开 <strong>Settings → Features → MCP Servers</strong>，点击 <strong>+ Add new MCP Server</strong>，选择 <strong>type: url</strong>，粘贴以下 JSON：
+                </p>
+                <div className="relative">
+                  <pre className="p-4 rounded-md bg-zinc-950 text-zinc-50 text-xs font-mono overflow-x-auto">
+                    {cursorConfig}
+                  </pre>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="absolute top-2 right-2 h-7 px-2 bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                    onClick={() => copyToClipboard(cursorConfig, "cursor")}
+                  >
+                    {copiedKey === "cursor" ? <Check className="size-3.5 mr-1" /> : <Copy className="size-3.5 mr-1" />}
+                    {copiedKey === "cursor" ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+              </TabsContent>
+              <TabsContent value="claude" className="space-y-3 m-0">
+                <p className="text-sm text-muted-foreground">
+                  将以下内容添加到 <code className="bg-muted px-1 py-0.5 rounded text-[11px]">claude_desktop_config.json</code> 文件中：
+                </p>
+                <div className="relative">
+                  <pre className="p-4 rounded-md bg-zinc-950 text-zinc-50 text-xs font-mono overflow-x-auto">
+                    {claudeConfig}
+                  </pre>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="absolute top-2 right-2 h-7 px-2 bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                    onClick={() => copyToClipboard(claudeConfig, "claude")}
+                  >
+                    {copiedKey === "claude" ? <Check className="size-3.5 mr-1" /> : <Copy className="size-3.5 mr-1" />}
+                    {copiedKey === "claude" ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+              </TabsContent>
+              <TabsContent value="vscode" className="space-y-3 m-0">
+                <p className="text-sm text-muted-foreground">
+                  将以下内容添加到 <code className="bg-muted px-1 py-0.5 rounded text-[11px]">.vscode/settings.json</code> 中：
+                </p>
+                <div className="relative">
+                  <pre className="p-4 rounded-md bg-zinc-950 text-zinc-50 text-xs font-mono overflow-x-auto">
+                    {vscodeConfig}
+                  </pre>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="absolute top-2 right-2 h-7 px-2 bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                    onClick={() => copyToClipboard(vscodeConfig, "vscode")}
+                  >
+                    {copiedKey === "vscode" ? <Check className="size-3.5 mr-1" /> : <Copy className="size-3.5 mr-1" />}
+                    {copiedKey === "vscode" ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+              </TabsContent>
+            </div>
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      {/* ─── Server List & Quick Info ─── */}
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* ─── Registered Servers (Col Span 2) ─── */}
+        <Card className="md:col-span-2 shadow-sm border-border/50 bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <CardHeader className="flex flex-row items-center justify-between pb-4 border-b">
+            <div className="space-y-1">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Activity className="size-4 text-primary" />
+                Registered Servers
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Active MCP servers in your hub
+              </CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => router.push("/servers")}>
+              View All
+            </Button>
+          </CardHeader>
+          <CardContent className="p-0">
+            {servers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <div className="bg-muted/50 p-4 rounded-full mb-4">
+                  <Server className="size-8 opacity-40 text-primary" />
+                </div>
+                <p className="font-medium text-sm">No servers registered</p>
+                <p className="text-xs mt-1">Go to MCP Servers page to add your first server.</p>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {servers.slice(0, 5).map((server) => (
+                  <div
+                    key={server.name}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-4 hover:bg-muted/30 transition-colors"
+                  >
+                    <div className="flex items-start sm:items-center gap-4 min-w-0">
+                      <div className="bg-primary/10 p-2.5 rounded-lg shrink-0 mt-0.5 sm:mt-0">
+                        {server.transport === "stdio" ? (
+                          <Terminal className="size-4 text-primary" />
+                        ) : (
+                          <Globe className="size-4 text-primary" />
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold truncate text-foreground/90">{server.name}</p>
+                          <Badge variant="secondary" className="text-[10px] h-4.5 px-1.5 font-medium tracking-wide bg-secondary/50">
+                            {server.transport.toUpperCase()}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate font-mono bg-muted/40 rounded px-1.5 py-0.5 w-fit max-w-full">
+                          {server.transport === "stdio"
+                            ? `${server.command || ""} ${(server.args || []).join(" ")}`.trim()
+                            : server.url || ""}
+                        </p>
+                        {server.description && (
+                          <p className="text-xs text-muted-foreground/80 mt-0.5 line-clamp-1">
+                            {server.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {servers.length > 5 && (
+                  <div className="p-3 text-center bg-muted/20 hover:bg-muted/40 transition-colors cursor-pointer" onClick={() => router.push("/servers")}>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      View {servers.length - 5} more servers
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ─── Quick Info (Col Span 1) ─── */}
+        <Card className="h-fit shadow-sm border-border/50 bg-gradient-to-br from-card to-card/50">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-semibold">System Info</CardTitle>
+            <CardDescription className="text-xs">
+              Gateway and connection status
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-1.5 bg-background/50 rounded-lg p-3 border border-border/50">
+              <span className="text-xs font-medium text-muted-foreground">Gateway Name</span>
+              <span className="text-sm font-semibold flex items-center gap-2">
+                {health?.name || "McpHub API"}
+              </span>
+            </div>
+            
+            <div className="flex flex-col gap-1.5 bg-background/50 rounded-lg p-3 border border-border/50">
+              <span className="text-xs font-medium text-muted-foreground">Status</span>
+              <div className="flex items-center gap-2">
+                <div className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </div>
+                <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                  {health?.status === "ok" ? "Operational" : (health?.status || "Unknown")}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1 bg-background/50 rounded-lg p-3 border border-border/50 items-center justify-center text-center">
+                <span className="text-2xl font-bold text-foreground/90">{stdioServers.length}</span>
+                <span className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground">Local</span>
+              </div>
+              <div className="flex flex-col gap-1 bg-background/50 rounded-lg p-3 border border-border/50 items-center justify-center text-center">
+                <span className="text-2xl font-bold text-foreground/90">{remoteServers.length}</span>
+                <span className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground">Remote</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
