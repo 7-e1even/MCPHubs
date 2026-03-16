@@ -1,65 +1,110 @@
 # MCPHubs
 
-> 注册任意 MCP Server (stdio / SSE / Streamable HTTP)，统一暴露为单一的 Streamable HTTP 端点。
+**The MCP gateway that doesn't overwhelm your AI.**
 
-<p align="center">
-  <strong>带 Web 看板的统一 MCP 网关</strong>
-</p>
+[中文文档](./README_zh.md)
+
+---
+
+## Why MCPHubs?
+
+MCP is powerful — but naive aggregation is not. When you wire up 10+ MCP Servers, your LLM is force-fed hundreds of tool definitions on every single request — burning tokens, inflating costs, and degrading decision quality.
+
+**MCPHubs fixes this with Progressive Disclosure.**
+
+Instead of dumping every tool into the system prompt, MCPHubs exposes a lean surface of just **4 meta-tools**. Your AI discovers servers, inspects their capabilities, and calls the right tool — all on demand, with zero upfront overhead.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Without MCPHubs                              │
+│                                                                     │
+│  AI System Prompt:                                                  │
+│  ├── tool_1 definition (search)              }                      │
+│  ├── tool_2 definition (fetch_article)       }  150 tool schemas    │
+│  ├── tool_3 definition (create_issue)        }  = ~8,000 tokens     │
+│  ├── ...                                     }  EVERY request       │
+│  └── tool_150 definition (run_analysis)      }                      │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                         With MCPHubs                                │
+│                                                                     │
+│  AI System Prompt:                                                  │
+│  ├── list_servers    "discover available servers"   }               │
+│  ├── list_tools      "inspect a server's tools"    }  4 tools       │
+│  ├── call_tool       "invoke any tool"             }  = ~400 tokens │
+│  └── refresh_tools   "refresh tool cache"          }  EVERY request │
+│                                                                     │
+│  AI discovers and calls the right tool when needed. Not before.     │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 <img src="./assets/dashboard.png" alt="MCPHubs Dashboard" width="800">
 
-## 🌟 ModelScope MCP 集成
+## How Progressive Disclosure Works
 
-一键对接 [ModelScope MCP 广场](https://modelscope.cn/home)，轻松将云端 MCP Server 同步到本地网关。
+MCPHubs collapses all your MCP Servers into **4 meta-tools**:
+
+| Meta-Tool | Purpose |
+|---|---|
+| `list_servers` | Discover available MCP Servers |
+| `list_tools` | Inspect tools on a specific server |
+| `call_tool` | Invoke any tool on any server |
+| `refresh_tools` | Refresh a server's tool cache |
+
+The AI explores your tool ecosystem **on demand** — it calls `list_servers` to see what's available, drills into a server with `list_tools`, and invokes the right tool via `call_tool`. No upfront cost, no bloat.
+
+> Don't need progressive disclosure? Set `MCPHUBS_EXPOSURE_MODE=full` and MCPHubs becomes a straightforward aggregation gateway — all tools from all servers exposed directly.
+
+## ✨ Features
+
+| | |
+|---|---|
+| 🎯 **Progressive Disclosure** | 4 meta-tools, infinite capabilities. Tools loaded on demand |
+| 🔀 **Multi-Protocol Gateway** | Unifies stdio, SSE, and Streamable HTTP behind one endpoint |
+| 🖥️ **Web Dashboard** | Modern Next.js UI for managing servers, bulk import/export |
+| 📦 **One-Click Import** | Auto-detects Claude Desktop, VS Code, and generic JSON configs |
+| 🤖 **LLM Descriptions** | Auto-generates server summaries via OpenAI-compatible APIs |
+| 🔐 **API Key Auth** | Bearer Token protection on the `/mcp` endpoint |
+| 🌟 **ModelScope Sync** | Import from [ModelScope MCP Marketplace](https://modelscope.cn/home) |
+
+### ModelScope Integration
 
 <img src="./assets/ModelScope.png" alt="ModelScope Integration" width="800">
 
-## ✨ 特性
-
-- **统一网关** — 将多个 MCP Server 聚合为一个统一的端点
-- **多协议支持** — stdio、SSE、Streamable HTTP
-- **渐进式模式 (Progressive)** — 默认仅暴露 3 个元工具 (`list_servers`, `list_tools`, `call_tool`)，大幅减少大模型前置 Token 消耗
-- **完整模式 (Full)** — 直接暴露所有 Server 的所有具体工具
-- **Web 看板** — 现代化的 UI 界面，用于管理、导入和导出 Server
-- **JSON 批量导入** — 自动识别 Claude Desktop / VS Code / 通用 JSON 格式
-- **ModelScope 同步** — 从魔搭社区 MCP 广场一键导入可用工具
-- **LLM 自动摘要** — 接入任意兼容 OpenAI 的接口，自动为 Server 生成功能描述
-- **API Key 认证** — 支持通过 Bearer Token 保护 `/mcp` 接口
-
-## 🏗 架构
+## 🏗 Architecture
 
 ```
-AI 客户端 → Streamable HTTP → MCPHubs 网关 → [stdio / SSE / HTTP MCP Servers]
-                                   ↕
-                              PostgreSQL
-                                   ↕
-                            Web 管理控制台 (Next.js)
+AI Client ──▶ Streamable HTTP ──▶ MCPHubs Gateway ──┬─ stdio servers
+                                       │            ├─ SSE servers
+                                  PostgreSQL         └─ HTTP servers
+                                       │
+                                  Web Dashboard
 ```
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### Docker Compose（推荐）
+### Docker Compose (Recommended)
 
 ```bash
-git clone https://github.com/user/mcphubs.git
-cd mcphubs
-cp .env.example .env        # 根据需要修改配置
+git clone https://github.com/7-e1even/MCPHubs.git && cd MCPHubs
+cp .env.example .env        # edit as needed
 docker compose up -d
 ```
 
-打开 `http://localhost:3000` — 使用 `admin` / `admin123` 登录。
+Open `http://localhost:3000` — login with `admin` / `admin123`.
 
-### 本地开发
+### Local Development
 
-**后端：**
+**Backend:**
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env        # 修改数据库连接等配置
+cp .env.example .env
 python main.py serve
 ```
 
-**前端（开发环境）：**
+**Frontend (dev):**
 
 ```bash
 cd web
@@ -67,16 +112,15 @@ npm install
 npm run dev
 ```
 
-**前端（生产部署）：**
+**Frontend (production):**
 
 ```bash
-cd web
-npm install
-npm run build
-npm run start
+cd web && npm install && npm run build && npm run start
 ```
 
-## 🔌 接入 AI 客户端
+## 🔌 Connect Your AI Client
+
+Add MCPHubs as a single MCP endpoint:
 
 ```json
 {
@@ -88,7 +132,7 @@ npm run start
 }
 ```
 
-如果配置了 API Key 认证：
+With API Key authentication:
 
 ```json
 {
@@ -96,46 +140,47 @@ npm run start
     "mcphubs": {
       "url": "http://localhost:8000/mcp",
       "headers": {
-        "Authorization": "Bearer 你的_API_KEY"
+        "Authorization": "Bearer YOUR_API_KEY"
       }
     }
   }
 }
 ```
 
-## 📡 管理 API
+That's it. Your AI now has access to **every tool on every server** through progressive discovery — without seeing any of them upfront.
+
+## ⚙️ Configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `MCPHUBS_EXPOSURE_MODE` | `progressive` | `progressive` (4 meta-tools) or `full` (passthrough) |
+| `MCPHUBS_DATABASE_URL` | `postgresql+asyncpg://...` | PostgreSQL connection string |
+| `MCPHUBS_API_KEY` | *(empty)* | Bearer Token for `/mcp` (empty = no auth) |
+| `MCPHUBS_HOST` | `0.0.0.0` | Listen address |
+| `MCPHUBS_PORT` | `8000` | Listen port |
+| `MCPHUBS_JWT_SECRET` | *(random)* | JWT signing secret for dashboard |
+| `MCPHUBS_ADMIN_USERNAME` | `admin` | Dashboard admin username |
+| `MCPHUBS_ADMIN_PASSWORD` | `admin123` | Dashboard admin password |
+
+## 📡 Management API
 
 ```bash
-# 获取所有 server 列表
+# List all servers
 curl http://localhost:8000/api/servers
 
-# 注册新的 server
+# Register a new server
 curl -X POST http://localhost:8000/api/servers \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <JWT_TOKEN>" \
   -d '{"name": "my-server", "transport": "sse", "url": "http://10.0.0.5:3000/sse"}'
 
-# 导出配置 (支持 claude / vscode / generic)
+# Export config (claude / vscode / generic)
 curl http://localhost:8000/api/servers/export?format=claude
 
-# 探活接口
+# Health check
 curl http://localhost:8000/api/health
 ```
 
-## ⚙️ 环境变量
-
-| 变量名 | 默认值 | 说明 |
-| ------------------------ | -------------------------- | ----------------------------------------- |
-| `MCPHUBS_HOST`           | `0.0.0.0`                  | 监听地址                               |
-| `MCPHUBS_PORT`           | `8000`                     | 监听端口                               |
-| `MCPHUBS_DATABASE_URL`   | `postgresql+asyncpg://...` | PostgreSQL 数据库连接                     |
-| `MCPHUBS_API_KEY`        | *(留空)*                  | `/mcp` 端点的 Bearer Token (留空则不开启校验) |
-| `MCPHUBS_EXPOSURE_MODE`  | `progressive`              | `progressive` (渐进式) 或 `full` (全量)模式 |
-| `MCPHUBS_JWT_SECRET`     | *(生成随机字符串)*             | 后台登录的 JWT 签名密钥                        |
-| `MCPHUBS_ADMIN_USERNAME` | `admin`                    | 默认管理员账号                    |
-| `MCPHUBS_ADMIN_PASSWORD` | `admin123`                 | 默认管理员密码                    |
-
-## 📄 开源协议
+## 📄 License
 
 [MIT](LICENSE)
-
