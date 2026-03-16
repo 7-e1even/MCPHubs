@@ -25,6 +25,7 @@ from routers import servers as servers_router
 from routers import health as health_router
 from routers import auth as auth_router
 from routers import settings as settings_router
+from routers import audit as audit_router
 
 logger = logging.getLogger("mcphubs")
 
@@ -154,6 +155,7 @@ def create_app() -> FastAPI:
     app.include_router(servers_router.router)
     app.include_router(auth_router.router)
     app.include_router(settings_router.router)
+    app.include_router(audit_router.router)
 
     # CORS（开发环境允许 Next.js dev server）
     app.add_middleware(

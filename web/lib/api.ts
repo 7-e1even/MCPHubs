@@ -97,6 +97,8 @@ export interface MCPServer {
   url?: string | null
   headers?: Record<string, string>
   description?: string | null
+  status?: string
+  error_message?: string | null
 }
 
 export async function fetchServers(): Promise<MCPServer[]> {
@@ -183,9 +185,70 @@ export async function generateDescription(name: string): Promise<{ status: strin
   })
 }
 
+// ─── Bulk LLM Analysis ───────────────────────────────────
+export interface AnalyzeAllResult {
+  success: { name: string; description: string }[]
+  skipped: { name: string; reason: string }[]
+  errors: { name: string; error: string }[]
+}
+
+export async function analyzeAllServers(force: boolean = false): Promise<AnalyzeAllResult> {
+  return fetchAPI<AnalyzeAllResult>(`/api/servers/analyze-all?force=${force}`, {
+    method: "POST",
+  })
+}
+
 // ─── ModelScope Sync ──────────────────────────────────────
 export async function syncModelScope(): Promise<ImportResult> {
   return fetchAPI<ImportResult>("/api/servers/sync-modelscope", {
     method: "POST",
   })
+}
+
+// ─── Audit Logs API ──────────────────────────────────────
+export interface AuditLog {
+  id: number
+  server_name: string
+  tool_name: string
+  arguments: string | null
+  result_preview: string | null
+  status: string
+  error_message: string | null
+  duration_ms: number
+  created_at: string
+}
+
+export interface AuditLogsResponse {
+  items: AuditLog[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+export interface AuditStats {
+  total: number
+  success: number
+  errors: number
+  by_server: { server_name: string; count: number }[]
+}
+
+export async function fetchAuditLogs(params: {
+  page?: number
+  page_size?: number
+  server_name?: string
+  tool_name?: string
+  status?: string
+} = {}): Promise<AuditLogsResponse> {
+  const q = new URLSearchParams()
+  if (params.page) q.set("page", String(params.page))
+  if (params.page_size) q.set("page_size", String(params.page_size))
+  if (params.server_name) q.set("server_name", params.server_name)
+  if (params.tool_name) q.set("tool_name", params.tool_name)
+  if (params.status) q.set("status", params.status)
+  return fetchAPI<AuditLogsResponse>(`/api/audit?${q.toString()}`)
+}
+
+export async function fetchAuditStats(): Promise<AuditStats> {
+  return fetchAPI<AuditStats>("/api/audit/stats")
 }

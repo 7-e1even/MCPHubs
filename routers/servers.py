@@ -191,6 +191,44 @@ async def generate_description(name: str, _user: str = Depends(get_current_user)
     return {"status": "ok", "description": desc}
 
 
+# ─── 批量 LLM 分析 ────────────────────────────────────────
+
+
+@router.post("/analyze-all")
+async def analyze_all_servers(
+    force: bool = Query(False, description="强制重新生成所有描述，即使已有"),
+    _user: str = Depends(get_current_user),
+):
+    """批量触发 LLM 为所有 Server 生成描述。"""
+    servers = _r().list_all()
+    results = {"success": [], "skipped": [], "errors": []}
+
+    for s in servers:
+        name = s["name"]
+        if not force and s.get("description"):
+            results["skipped"].append({"name": name, "reason": "已有描述"})
+            continue
+
+        cfg = MCPServerConfig(**{k: s[k] for k in MCPServerConfig.model_fields if k in s})
+        try:
+            factory = create_client_factory(cfg)
+            async with factory() as client:
+                tools = await client.list_tools()
+                tools_info = [{"name": t.name, "description": t.description or ""} for t in tools]
+        except Exception as e:
+            results["errors"].append({"name": name, "error": f"连接失败: {e}"})
+            continue
+
+        desc = await summarize_mcp(tools_info)
+        if desc:
+            await _r().set_description(name, desc)
+            results["success"].append({"name": name, "description": desc})
+        else:
+            results["errors"].append({"name": name, "error": "LLM 未配置或调用失败"})
+
+    return results
+
+
 # ─── JSON 批量导入 ────────────────────────────────────────
 
 

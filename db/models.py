@@ -68,6 +68,39 @@ class MCPServerModel(Base):
         }
 
 
+class AuditLogModel(Base):
+    """调用审计日志表。"""
+
+    __tablename__ = "audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    server_name: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    tool_name: Mapped[str] = mapped_column(String(256), nullable=False, index=True)
+    arguments: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result_preview: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="success")
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    duration_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "server_name": self.server_name,
+            "tool_name": self.tool_name,
+            "arguments": self.arguments,
+            "result_preview": self.result_preview,
+            "status": self.status,
+            "error_message": self.error_message,
+            "duration_ms": self.duration_ms,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class UserModel(Base):
     """用户表。"""
 

@@ -22,6 +22,7 @@ import {
   Pencil,
   ChevronLeft,
   ChevronRight,
+  Filter,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -62,8 +63,10 @@ export default function ServersPage() {
   // View mode
   const [viewMode, setViewMode] = useState<"card" | "list">("card")
 
-  // Search
+  // Search & Filters
   const [search, setSearch] = useState("")
+  const [filterTransport, setFilterTransport] = useState<string>("all")
+  const [filterStatus, setFilterStatus] = useState<string>("all")
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -136,23 +139,36 @@ export default function ServersPage() {
 
   // Filtered servers
   const filteredServers = useMemo(() => {
-    if (!search.trim()) return servers
-    const q = search.toLowerCase()
-    return servers.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.transport.toLowerCase().includes(q) ||
-        (s.description && s.description.toLowerCase().includes(q)) ||
-        (s.command && s.command.toLowerCase().includes(q)) ||
-        (s.url && s.url.toLowerCase().includes(q)) ||
-        (s.args && s.args.some((a) => a.toLowerCase().includes(q)))
-    )
-  }, [servers, search])
+    let result = servers
+    if (filterTransport !== "all") {
+      result = result.filter((s) => s.transport === filterTransport)
+    }
+    if (filterStatus !== "all") {
+      result = result.filter((s) => (s.status || "registered") === filterStatus)
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      result = result.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          s.transport.toLowerCase().includes(q) ||
+          (s.description && s.description.toLowerCase().includes(q)) ||
+          (s.command && s.command.toLowerCase().includes(q)) ||
+          (s.url && s.url.toLowerCase().includes(q)) ||
+          (s.args && s.args.some((a) => a.toLowerCase().includes(q)))
+      )
+    }
+    return result
+  }, [servers, search, filterTransport, filterStatus])
+
+  // Unique values for filters
+  const transportOptions = useMemo(() => [...new Set(servers.map((s) => s.transport))], [servers])
+  const statusOptions = useMemo(() => [...new Set(servers.map((s) => s.status || "registered"))], [servers])
 
   // Reset page when search or view mode changes
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, viewMode])
+  }, [search, viewMode, filterTransport, filterStatus])
 
   // Paged servers
   const pageSize = viewMode === "card" ? PAGE_SIZE_CARD : PAGE_SIZE_LIST
@@ -296,6 +312,27 @@ export default function ServersPage() {
       ? `${s.command || ""} ${(s.args || []).join(" ")}`.trim()
       : s.url || ""
 
+  // Status dot helper
+  const statusDot = (s: MCPServer) => {
+    const st = s.status || "registered"
+    const colors: Record<string, string> = {
+      connected: "bg-emerald-500",
+      error: "bg-red-500",
+      registered: "bg-gray-400",
+    }
+    const labels: Record<string, string> = {
+      connected: "Connected",
+      error: s.error_message ? `Error: ${s.error_message}` : "Error",
+      registered: "Registered",
+    }
+    return (
+      <span className="relative flex size-2.5 shrink-0" title={labels[st] || st}>
+        <span className={`absolute inline-flex h-full w-full rounded-full opacity-40 ${st === "connected" ? "animate-ping" : ""} ${colors[st] || "bg-gray-400"}`} />
+        <span className={`relative inline-flex size-2.5 rounded-full ${colors[st] || "bg-gray-400"}`} />
+      </span>
+    )
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col gap-6 p-8">
@@ -379,7 +416,7 @@ export default function ServersPage() {
                 Export
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Export Servers</DialogTitle>
                 <DialogDescription>Export as Claude Desktop / VS Code / Generic JSON</DialogDescription>
@@ -416,7 +453,7 @@ export default function ServersPage() {
                 Add Server
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-xl">
+            <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add MCP Server</DialogTitle>
                 <DialogDescription>通过表单添加单个 Server，或粘贴 JSON 批量导入</DialogDescription>
@@ -527,12 +564,36 @@ export default function ServersPage() {
         <div className="text-sm text-destructive bg-destructive/10 px-4 py-3 rounded-md">{error}</div>
       )}
 
-      {/* Search + View Toggle */}
+      {/* Search + Filters + View Toggle */}
       {servers.length > 0 && (
-        <div className="flex items-center justify-between gap-4">
-          <div className="relative max-w-sm flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search servers..." className="pl-9" />
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="relative max-w-sm flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search servers..." className="pl-9" />
+            </div>
+            <Select value={filterTransport} onValueChange={setFilterTransport}>
+              <SelectTrigger className="w-fit min-w-[140px] shrink-0">
+                <SelectValue placeholder="Transport" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Transport</SelectItem>
+                {transportOptions.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-fit min-w-[130px] shrink-0">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                {statusOptions.map((s) => (
+                  <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex shrink-0 items-center rounded-4xl bg-muted p-1 h-9">
             <button
@@ -556,7 +617,6 @@ export default function ServersPage() {
               <List className="size-4" />
             </button>
           </div>
-
         </div>
       )}
 
@@ -588,12 +648,15 @@ export default function ServersPage() {
             <Card key={s.name} className="group hover:border-primary/40 transition-all hover:shadow-md">
               <CardHeader className="flex flex-row items-start justify-between pb-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="bg-primary/10 p-2.5 rounded-lg shrink-0">
+                  <div className="bg-primary/10 p-2.5 rounded-lg shrink-0 relative">
                     {s.transport === "stdio" ? <Terminal className="size-4 text-primary" /> : <Globe className="size-4 text-primary" />}
+                    <span className="absolute -top-0.5 -right-0.5">{statusDot(s)}</span>
                   </div>
                   <div className="min-w-0">
                     <CardTitle className="text-sm font-semibold truncate">{s.name}</CardTitle>
-                    <Badge variant="outline" className="mt-1 text-[11px]">{s.transport}</Badge>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Badge variant="outline" className="text-[11px]">{s.transport}</Badge>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -684,7 +747,12 @@ export default function ServersPage() {
             <TableBody>
               {pagedServers.map((s) => (
                 <TableRow key={s.name} className="group">
-                  <TableCell className="font-semibold text-sm">{s.name}</TableCell>
+                  <TableCell className="font-semibold text-sm">
+                    <span className="flex items-center gap-2">
+                      {statusDot(s)}
+                      {s.name}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="text-[11px]">{s.transport}</Badge>
                   </TableCell>
@@ -715,7 +783,7 @@ export default function ServersPage() {
 
       {/* ─── Edit Dialog ─── */}
       <Dialog open={!!editServer} onOpenChange={(open) => { if (!open) setEditServer(null) }}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Server: {editServer?.name}</DialogTitle>
             <DialogDescription>修改 MCP Server 的配置</DialogDescription>

@@ -7,8 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Check, Eye, EyeOff, AlertCircle, BrainCircuit } from "lucide-react"
-import { getSettings, updateSetting, isLoggedIn } from "@/lib/api"
+import { Check, Eye, EyeOff, AlertCircle, BrainCircuit, RefreshCw, Loader2 } from "lucide-react"
+import { getSettings, updateSetting, isLoggedIn, analyzeAllServers, type AnalyzeAllResult } from "@/lib/api"
 
 export default function LLMSettingsPage() {
   const router = useRouter()
@@ -24,6 +24,12 @@ export default function LLMSettingsPage() {
   const [llmLoading, setLlmLoading] = useState(false)
   const [llmError, setLlmError] = useState("")
   const [llmSuccess, setLlmSuccess] = useState(false)
+
+  // analyze states
+  const [analyzeLoading, setAnalyzeLoading] = useState(false)
+  const [analyzeForce, setAnalyzeForce] = useState(false)
+  const [analyzeResult, setAnalyzeResult] = useState<AnalyzeAllResult | null>(null)
+  const [analyzeError, setAnalyzeError] = useState("")
 
   useEffect(() => {
     if (!isLoggedIn()) { router.push("/login"); return }
@@ -61,6 +67,18 @@ export default function LLMSettingsPage() {
       setLlmError(err instanceof Error ? err.message : "Failed to save LLM config")
     } finally {
       setLlmLoading(false)
+    }
+  }
+
+  async function handleAnalyze() {
+    setAnalyzeError(""); setAnalyzeResult(null); setAnalyzeLoading(true)
+    try {
+      const result = await analyzeAllServers(analyzeForce)
+      setAnalyzeResult(result)
+    } catch (err: unknown) {
+      setAnalyzeError(err instanceof Error ? err.message : "Analysis failed")
+    } finally {
+      setAnalyzeLoading(false)
     }
   }
 
@@ -160,6 +178,88 @@ export default function LLMSettingsPage() {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Analyze All Servers */}
+      <Card className="shadow-sm border-border/50">
+        <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <RefreshCw className="size-4 text-primary" />
+            Analyze Servers
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Trigger LLM to generate descriptions for all MCP servers. No restart required.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <div className="flex flex-col gap-4 max-w-xl">
+            {analyzeError && (
+              <div className="rounded-md bg-destructive/10 text-destructive text-sm px-3 py-2 flex items-center gap-2 border border-destructive/20">
+                <AlertCircle className="size-4 shrink-0" />
+                <span className="font-medium">{analyzeError}</span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="analyze-force"
+                checked={analyzeForce}
+                onChange={(e) => setAnalyzeForce(e.target.checked)}
+                className="rounded border-border"
+              />
+              <Label htmlFor="analyze-force" className="text-sm cursor-pointer">
+                Force re-analyze (overwrite existing descriptions)
+              </Label>
+            </div>
+
+            <div>
+              <Button onClick={handleAnalyze} disabled={analyzeLoading} className="w-full sm:w-auto">
+                {analyzeLoading ? (
+                  <>
+                    <Loader2 className="size-4 mr-2 animate-spin" />
+                    Analyzing…
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="size-4 mr-2" />
+                    Analyze All Servers
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {analyzeResult && (
+              <div className="space-y-2 text-sm">
+                {analyzeResult.success.length > 0 && (
+                  <div className="rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-3 py-2 border border-emerald-500/20">
+                    <p className="font-medium mb-1">✓ Generated {analyzeResult.success.length} description(s)</p>
+                    <ul className="list-disc list-inside space-y-0.5 text-xs">
+                      {analyzeResult.success.map((s) => (
+                        <li key={s.name}><span className="font-medium">{s.name}</span>: {s.description}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {analyzeResult.skipped.length > 0 && (
+                  <div className="rounded-md bg-muted px-3 py-2 border border-border/50 text-muted-foreground">
+                    <p className="font-medium mb-1">Skipped {analyzeResult.skipped.length} server(s) (already have descriptions)</p>
+                  </div>
+                )}
+                {analyzeResult.errors.length > 0 && (
+                  <div className="rounded-md bg-destructive/10 text-destructive px-3 py-2 border border-destructive/20">
+                    <p className="font-medium mb-1">✗ Failed {analyzeResult.errors.length} server(s)</p>
+                    <ul className="list-disc list-inside space-y-0.5 text-xs">
+                      {analyzeResult.errors.map((e) => (
+                        <li key={e.name}><span className="font-medium">{e.name}</span>: {e.error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -9,6 +9,7 @@ import {
   LogOut,
   Moon,
   Sun,
+  ScrollText,
 } from "lucide-react"
 
 import {
@@ -34,6 +35,11 @@ const navMain = [
     title: "MCP Servers",
     url: "/servers",
     icon: Server,
+  },
+  {
+    title: "Logs",
+    url: "/logs",
+    icon: ScrollText,
   },
 ]
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Any
 
 from fastmcp import FastMCP, Client
@@ -23,6 +24,36 @@ from services.transport import create_client_factory
 from services.summarizer import summarize_mcp
 
 logger = logging.getLogger("mcphubs.services.progressive")
+
+
+async def _log_audit(
+    server_name: str,
+    tool_name: str,
+    arguments: str,
+    result_preview: str,
+    status: str,
+    error_message: str | None,
+    duration_ms: int,
+) -> None:
+    """Fire-and-forget: 异步写入审计日志。"""
+    try:
+        from db.engine import get_session_factory
+        from db.models import AuditLogModel
+
+        factory = get_session_factory()
+        async with factory() as session:
+            session.add(AuditLogModel(
+                server_name=server_name,
+                tool_name=tool_name,
+                arguments=arguments[:2000] if arguments else None,
+                result_preview=result_preview[:500] if result_preview else None,
+                status=status,
+                error_message=error_message,
+                duration_ms=duration_ms,
+            ))
+            await session.commit()
+    except Exception as e:
+        logger.debug(f"审计日志写入失败: {e}")
 
 
 class ProgressiveProxy:
@@ -216,6 +247,7 @@ class ProgressiveProxy:
             except json.JSONDecodeError as e:
                 return json.dumps({"error": f"arguments JSON 解析失败: {e}"})
 
+            start = time.time()
             try:
                 async with factory() as client:
                     result = await client.call_tool(tool_name, args)
@@ -225,6 +257,12 @@ class ProgressiveProxy:
                             texts.append(item.text)
                         else:
                             texts.append(str(item))
-                    return "\n".join(texts)
+                    output = "\n".join(texts)
+                    duration_ms = int((time.time() - start) * 1000)
+                    await _log_audit(mcp_name, tool_name, arguments if isinstance(arguments, str) else json.dumps(arguments), output, "success", None, duration_ms)
+                    return output
             except Exception as e:
-                return json.dumps({"error": str(e)})
+                duration_ms = int((time.time() - start) * 1000)
+                error_msg = str(e)
+                await _log_audit(mcp_name, tool_name, arguments if isinstance(arguments, str) else json.dumps(arguments), "", "error", error_msg, duration_ms)
+                return json.dumps({"error": error_msg})
