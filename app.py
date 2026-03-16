@@ -77,6 +77,17 @@ def create_app() -> FastAPI:
         # 启动：建表 + 加载 server
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            # Auto-migrate: ensure disabled_tools column exists (for upgrades)
+            from sqlalchemy import text
+            result = await conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = 'mcp_servers' AND column_name = 'disabled_tools'"
+            ))
+            if not result.fetchone():
+                await conn.execute(text(
+                    "ALTER TABLE mcp_servers ADD COLUMN disabled_tools JSONB DEFAULT '[]'::jsonb"
+                ))
+                logger.info("✓ 自动迁移: 已添加 disabled_tools 列")
         logger.info("数据库表已就绪")
 
         # 自动创建默认管理员

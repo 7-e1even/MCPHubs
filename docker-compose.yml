@@ -14,17 +14,17 @@ services:
       timeout: 3s
       retries: 5
 
-  backend:
+  mcphubs:
     build:
       context: .
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "3000:3000"   # Frontend
+      - "8000:8000"   # Backend API + MCP
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      BUILDX_NO_DEFAULT_ATTESTATIONS: "1"
       MCPHUBS_HOST: "0.0.0.0"
       MCPHUBS_PORT: "8000"
       MCPHUBS_DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres:5432/mcphubs"
@@ -32,18 +32,6 @@ services:
       MCPHUBS_ADMIN_USERNAME: "${MCPHUBS_ADMIN_USERNAME:-admin}"
       MCPHUBS_ADMIN_PASSWORD: "${MCPHUBS_ADMIN_PASSWORD:-admin123}"
       MCPHUBS_EXPOSURE_MODE: "${MCPHUBS_EXPOSURE_MODE:-progressive}"
-
-  frontend:
-    build:
-      context: ./web
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
-    environment:
-      BUILDX_NO_DEFAULT_ATTESTATIONS: "1"
-      HOSTNAME: "0.0.0.0"
 
 volumes:
   pgdata:
