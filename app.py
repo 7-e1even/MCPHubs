@@ -120,7 +120,7 @@ def create_app() -> FastAPI:
 
         # 注入到 routers
         servers_router.inject(registry, proxy)
-        health_router.inject(registry, config.server.name)
+        health_router.inject(registry, config.server.name, config.server.exposure_mode, proxy)
 
         # 挂载 MCP 端点
         mcp_app = proxy.get_asgi_app(path="/mcp")

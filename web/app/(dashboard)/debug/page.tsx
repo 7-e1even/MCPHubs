@@ -29,11 +29,14 @@ import {
   Zap,
   ChevronRight,
   Server as ServerIcon,
+  Eye,
+  EyeOff,
 } from "lucide-react"
 import {
   fetchServers,
   testServer,
   callServerTool,
+  updateDisabledTools,
   isLoggedIn,
   type MCPServer,
   type TestResult,
@@ -58,10 +61,19 @@ export default function DebugPage() {
   const [callResult, setCallResult] = useState<CallToolResult | null>(null)
   const [calling, setCalling] = useState(false)
   const [testingAll, setTestingAll] = useState(false)
+  const [disabledTools, setDisabledTools] = useState<Record<string, Set<string>>>({})
+  const [togglingTool, setTogglingTool] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isLoggedIn()) { router.push("/login"); return }
-    fetchServers().then(s => { setServers(s); setLoading(false) }).catch(() => setLoading(false))
+    fetchServers().then(s => {
+      setServers(s)
+      // 初始化每个 server 的 disabled_tools
+      const dt: Record<string, Set<string>> = {}
+      s.forEach(sv => { dt[sv.name] = new Set(sv.disabled_tools || []) })
+      setDisabledTools(dt)
+      setLoading(false)
+    }).catch(() => setLoading(false))
   }, [router])
 
   const doTest = useCallback(async (name: string) => {
@@ -97,6 +109,20 @@ export default function DebugPage() {
     setCallResult(null)
     setToolArgs("{}")
   }
+
+  const toggleToolDisabled = useCallback(async (serverName: string, toolName: string) => {
+    setTogglingTool(toolName)
+    const current = disabledTools[serverName] || new Set()
+    const isDisabled = current.has(toolName)
+    const newSet = new Set(current)
+    if (isDisabled) newSet.delete(toolName)
+    else newSet.add(toolName)
+    try {
+      await updateDisabledTools(serverName, [...newSet])
+      setDisabledTools(prev => ({ ...prev, [serverName]: newSet }))
+    } catch { /* ignore */ }
+    setTogglingTool(null)
+  }, [disabledTools])
 
   const doCallTool = async () => {
     if (!selectedServer || !selectedTool) return
@@ -347,6 +373,7 @@ export default function DebugPage() {
                   <div className="overflow-y-auto flex-1 p-2 space-y-1">
                     {selectedTools.map(tool => {
                       const isSelected = selectedTool?.name === tool.name
+                      const isDisabled = selectedServer ? (disabledTools[selectedServer]?.has(tool.name) ?? false) : false
                       return (
                         <div
                           key={tool.name}
@@ -354,7 +381,7 @@ export default function DebugPage() {
                             isSelected 
                               ? "bg-background shadow-sm border-border/60 relative z-10" 
                               : "border-transparent hover:bg-muted/50"
-                          }`}
+                          } ${isDisabled ? "opacity-50" : ""}`}
                           onClick={() => {
                             setSelectedTool(tool)
                             setCallResult(null)
@@ -370,9 +397,17 @@ export default function DebugPage() {
                           }}
                         >
                           <div className="flex items-center gap-2">
-                            <span className={`text-sm font-semibold font-mono truncate ${isSelected ? "text-primary" : "text-foreground/90"}`}>
+                            <span className={`text-sm font-semibold font-mono truncate flex-1 ${isDisabled ? "text-muted-foreground line-through" : isSelected ? "text-primary" : "text-foreground/90"}`}>
                               {tool.name}
                             </span>
+                            <button
+                              className={`shrink-0 p-0.5 rounded transition-colors ${isDisabled ? "text-muted-foreground hover:text-foreground" : "text-emerald-500 hover:text-emerald-600"}`}
+                              title={isDisabled ? "Enable tool" : "Disable tool"}
+                              onClick={(e) => { e.stopPropagation(); if (selectedServer) toggleToolDisabled(selectedServer, tool.name) }}
+                              disabled={togglingTool === tool.name}
+                            >
+                              {togglingTool === tool.name ? <Loader2 className="size-3.5 animate-spin" /> : isDisabled ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                            </button>
                           </div>
                           {tool.description && (
                             <p className="text-[11px] text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">

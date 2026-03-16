@@ -13,6 +13,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
+import { Separator } from "@/components/ui/separator"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
@@ -113,35 +114,45 @@ export default function LogsPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      {/* Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="hover:border-primary/50 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
-            <Activity className="size-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats?.total ?? 0}</div>
-          </CardContent>
-        </Card>
-        <Card className="hover:border-emerald-500/50 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Successful</CardTitle>
-            <CheckCircle2 className="size-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{stats?.success ?? 0}</div>
-          </CardContent>
-        </Card>
-        <Card className="hover:border-red-500/50 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Errors</CardTitle>
-            <XCircle className="size-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-red-600 dark:text-red-400">{stats?.errors ?? 0}</div>
-          </CardContent>
-        </Card>
+      {/* Sleek Stats Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-muted/20 border rounded-xl px-6 py-4 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="bg-primary/10 p-2.5 rounded-lg shrink-0">
+            <Activity className="size-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider whitespace-nowrap">Total Calls</p>
+            <p className="text-2xl font-bold leading-none mt-1">{stats?.total ?? 0}</p>
+          </div>
+        </div>
+        
+        <Separator orientation="vertical" className="h-10 hidden sm:block opacity-50" />
+        <Separator orientation="horizontal" className="w-full block sm:hidden opacity-50" />
+        
+        <div className="flex items-center gap-4">
+          <div className="bg-emerald-500/10 p-2.5 rounded-lg shrink-0">
+            <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider whitespace-nowrap">Successful</p>
+            <p className="text-2xl font-bold leading-none mt-1 text-emerald-600 dark:text-emerald-400">{stats?.success ?? 0}</p>
+          </div>
+        </div>
+        
+        <Separator orientation="vertical" className="h-10 hidden sm:block opacity-50" />
+        <Separator orientation="horizontal" className="w-full block sm:hidden opacity-50" />
+        
+        <div className="flex items-center gap-4">
+          <div className="bg-red-500/10 p-2.5 rounded-lg shrink-0">
+            <XCircle className="size-4 text-red-600 dark:text-red-400" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider whitespace-nowrap">Errors</p>
+            <p className="text-2xl font-bold leading-none mt-1 text-red-600 dark:text-red-400">{stats?.errors ?? 0}</p>
+          </div>
+        </div>
+        
+        <div className="hidden sm:block flex-1" />
       </div>
 
       {/* Filters */}

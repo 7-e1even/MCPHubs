@@ -172,6 +172,14 @@ class ProgressiveProxy:
 
             cached = tools_cache.get(mcp_name)
             if cached is not None:
+                # 过滤禁用的工具
+                try:
+                    info = registry.get(mcp_name)
+                    disabled = set(info.get("disabled_tools") or [])
+                except KeyError:
+                    disabled = set()
+                if disabled:
+                    cached = [t for t in cached if t["name"] not in disabled]
                 return json.dumps(cached, ensure_ascii=False)
 
             # 缓存未命中（理论上不应发生），实时拉取
@@ -188,6 +196,14 @@ class ProgressiveProxy:
                         for t in tools
                     ]
                     tools_cache[mcp_name] = items
+                    # 过滤禁用的工具
+                    try:
+                        info = registry.get(mcp_name)
+                        disabled = set(info.get("disabled_tools") or [])
+                    except KeyError:
+                        disabled = set()
+                    if disabled:
+                        items = [t for t in items if t["name"] not in disabled]
                     return json.dumps(items, ensure_ascii=False)
             except Exception as e:
                 return json.dumps({"error": str(e)})
@@ -231,6 +247,15 @@ class ProgressiveProxy:
             """
             if mcp_name not in factories:
                 return json.dumps({"error": f"MCP '{mcp_name}' 不存在"})
+
+            # 检查是否被禁用
+            try:
+                info = registry.get(mcp_name)
+                disabled = set(info.get("disabled_tools") or [])
+                if tool_name in disabled:
+                    return json.dumps({"error": f"Tool '{tool_name}' 已被禁用"})
+            except KeyError:
+                pass
 
             factory = factories[mcp_name]
             try:

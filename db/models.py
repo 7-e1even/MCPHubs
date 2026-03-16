@@ -38,6 +38,7 @@ class MCPServerModel(Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    disabled_tools: Mapped[list] = mapped_column(JSON, default=list)
 
     # 时间
     created_at: Mapped[datetime] = mapped_column(
@@ -63,6 +64,7 @@ class MCPServerModel(Base):
             "error_message": self.error_message,
             "enabled": self.enabled,
             "description": self.description,
+            "disabled_tools": self.disabled_tools or [],
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

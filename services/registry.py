@@ -124,6 +124,17 @@ class Registry:
                 row.description = description
                 await session.commit()
 
+    async def set_disabled_tools(self, name: str, disabled_tools: list[str]) -> None:
+        """更新 server 的禁用工具列表。"""
+        if name in self._cache:
+            self._cache[name]["disabled_tools"] = disabled_tools
+
+        async with self._sf() as session:
+            row = await session.get(MCPServerModel, name)
+            if row:
+                row.disabled_tools = disabled_tools
+                await session.commit()
+
     async def import_from_yaml(self, config: MCPServerConfig) -> None:
         """从 YAML 导入（如果 DB 中不存在则插入）。"""
         async with self._sf() as session:

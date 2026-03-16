@@ -81,6 +81,12 @@ export interface HealthResponse {
   status: string
   name: string
   servers_count: number
+  exposure_mode: string
+  total_tools: number
+  cpu_percent: number
+  memory_used_mb: number
+  memory_total_mb: number
+  memory_percent: number
 }
 
 export async function fetchHealth(): Promise<HealthResponse> {
@@ -99,6 +105,7 @@ export interface MCPServer {
   description?: string | null
   status?: string
   error_message?: string | null
+  disabled_tools?: string[]
 }
 
 export async function fetchServers(): Promise<MCPServer[]> {
@@ -295,4 +302,28 @@ export async function callServerTool(
       body: JSON.stringify({ tool_name: toolName, arguments: args }),
     }
   )
+}
+
+// ─── Tool Filtering API ───────────────────────────────────
+export interface ServerToolInfo {
+  name: string
+  description: string
+  inputSchema: Record<string, unknown>
+  disabled: boolean
+}
+
+export interface ServerToolsResponse {
+  tools: ServerToolInfo[]
+  disabled_tools: string[]
+}
+
+export async function fetchServerTools(name: string): Promise<ServerToolsResponse> {
+  return fetchAPI<ServerToolsResponse>(`/api/servers/${encodeURIComponent(name)}/tools`)
+}
+
+export async function updateDisabledTools(name: string, disabledTools: string[]) {
+  return fetchAPI(`/api/servers/${encodeURIComponent(name)}/disabled-tools`, {
+    method: "PUT",
+    body: JSON.stringify({ disabled_tools: disabledTools }),
+  })
 }

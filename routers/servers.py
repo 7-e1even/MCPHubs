@@ -192,6 +192,55 @@ async def generate_description(name: str, _user: str = Depends(get_current_user)
     return {"status": "ok", "description": desc}
 
 
+# ─── 工具过滤管理 ────────────────────────────────────────
+
+
+class DisabledToolsRequest(BaseModel):
+    disabled_tools: list[str] = Field(default_factory=list)
+
+
+@router.put("/{name}/disabled-tools")
+async def update_disabled_tools(
+    name: str, req: DisabledToolsRequest, _user: str = Depends(get_current_user)
+):
+    """更新 MCP Server 的禁用工具列表。"""
+    if name not in _r():
+        raise HTTPException(404, f"Server '{name}' 不存在")
+
+    await _r().set_disabled_tools(name, req.disabled_tools)
+
+    # 同步更新 progressive proxy 的 tools_cache（不需要，list_tools 读取时实时过滤）
+    return {"status": "ok", "disabled_tools": req.disabled_tools}
+
+
+@router.get("/{name}/tools")
+async def get_server_tools(name: str):
+    """获取 MCP Server 的完整工具列表（含禁用状态）。"""
+    if name not in _r():
+        raise HTTPException(404, f"Server '{name}' 不存在")
+
+    info = _r().get(name)
+    disabled = set(info.get("disabled_tools") or [])
+
+    cfg = MCPServerConfig(**{k: info[k] for k in MCPServerConfig.model_fields if k in info})
+    try:
+        factory = create_client_factory(cfg)
+        async with factory() as client:
+            tools_result = await client.list_tools()
+            tools = [
+                {
+                    "name": t.name,
+                    "description": t.description or "",
+                    "inputSchema": t.inputSchema if hasattr(t, "inputSchema") else {},
+                    "disabled": t.name in disabled,
+                }
+                for t in tools_result
+            ]
+            return {"tools": tools, "disabled_tools": list(disabled)}
+    except Exception as e:
+        raise HTTPException(500, f"连接 MCP 失败: {e}")
+
+
 # ─── 批量 LLM 分析 ────────────────────────────────────────
 
 

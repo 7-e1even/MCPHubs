@@ -26,6 +26,9 @@ import {
   Zap,
   Loader2,
   X,
+  Wrench,
+  Eye,
+  EyeOff,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -54,9 +57,12 @@ import {
   importServers,
   exportServers,
   testServer,
+  fetchServerTools,
+  updateDisabledTools,
   isLoggedIn,
   type MCPServer,
   type ImportResult,
+  type ServerToolInfo,
 } from "@/lib/api"
 
 export default function ServersPage() {
@@ -127,6 +133,12 @@ export default function ServersPage() {
   const [editHeaders, setEditHeaders] = useState("")
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [editError, setEditError] = useState("")
+
+  // Tools dialog state
+  const [toolsServer, setToolsServer] = useState<string | null>(null)
+  const [toolsList, setToolsList] = useState<ServerToolInfo[]>([])
+  const [toolsLoading, setToolsLoading] = useState(false)
+  const [toolsUpdating, setToolsUpdating] = useState<string | null>(null)
 
   const loadServers = useCallback(async () => {
     try {
@@ -407,6 +419,37 @@ export default function ServersPage() {
     navigator.clipboard.writeText(exportData)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  // ─── Tools Dialog ───
+  async function openToolsDialog(name: string) {
+    setToolsServer(name)
+    setToolsLoading(true)
+    setToolsList([])
+    try {
+      const res = await fetchServerTools(name)
+      setToolsList(res.tools)
+    } catch {
+      setToolsList([])
+    } finally {
+      setToolsLoading(false)
+    }
+  }
+
+  async function handleToggleTool(toolName: string, currentDisabled: boolean) {
+    if (!toolsServer) return
+    setToolsUpdating(toolName)
+    try {
+      const newDisabled = currentDisabled
+        ? toolsList.filter(t => t.disabled && t.name !== toolName).map(t => t.name)
+        : [...toolsList.filter(t => t.disabled).map(t => t.name), toolName]
+      await updateDisabledTools(toolsServer, newDisabled)
+      setToolsList(prev => prev.map(t => t.name === toolName ? { ...t, disabled: !t.disabled } : t))
+    } catch {
+      // ignore
+    } finally {
+      setToolsUpdating(null)
+    }
   }
 
   // Helper to get server description
@@ -710,42 +753,6 @@ export default function ServersPage() {
             </Select>
           </div>
 
-          {/* ─── Inline Batch Action Bar ─── */}
-          {selectedServers.size > 0 && (
-            <div className="flex items-center gap-2 bg-background border shadow-sm rounded-md px-3 py-1.5 animate-in fade-in duration-200 shrink-0">
-              <span className="text-sm font-medium px-1">
-                {selectedServers.size} selected
-              </span>
-              <Separator orientation="vertical" className="h-4 mx-1" />
-              <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={selectAllFiltered}>
-                Select All
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs gap-1.5 px-2.5"
-                onClick={handleBatchTest}
-                disabled={batchTesting || batchDeleting}
-              >
-                {batchTesting ? <Loader2 className="size-3 animate-spin" /> : <Zap className="size-3" />}
-                {batchTesting ? "Testing..." : "Test"}
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="h-7 text-xs gap-1.5 px-2.5"
-                onClick={() => setBatchDeleteOpen(true)}
-                disabled={batchTesting || batchDeleting}
-              >
-                <Trash2 className="size-3" />
-                Delete
-              </Button>
-              <Button variant="ghost" size="icon" className="size-7 text-muted-foreground ml-1" onClick={deselectAll}>
-                <X className="size-3.5" />
-              </Button>
-            </div>
-          )}
-
           <div className="flex shrink-0 items-center rounded-4xl bg-muted p-1 h-9">
             <button
               onClick={() => setViewMode("card")}
@@ -827,6 +834,9 @@ export default function ServersPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => openToolsDialog(s.name)} title="Manage Tools">
+                      <Wrench className="size-4" />
+                    </Button>
                     <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => openEditDialog(s)}>
                       <Pencil className="size-4" />
                     </Button>
@@ -906,6 +916,9 @@ export default function ServersPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-primary" onClick={() => openToolsDialog(s.name)} title="Manage Tools">
+                        <Wrench className="size-3.5" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-primary" onClick={() => openEditDialog(s)}>
                         <Pencil className="size-3.5" />
                       </Button>
@@ -1032,6 +1045,113 @@ export default function ServersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ─── Tools Management Dialog ─── */}
+      <Dialog open={!!toolsServer} onOpenChange={(open) => { if (!open) setToolsServer(null) }}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wrench className="size-4 text-primary" />
+              Tools: {toolsServer}
+            </DialogTitle>
+            <DialogDescription>
+              Toggle tools on/off. Disabled tools will not be exposed to the AI client.
+            </DialogDescription>
+          </DialogHeader>
+          {toolsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : toolsList.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Wrench className="size-8 opacity-20 mb-3" />
+              <p className="text-sm">No tools found or connection failed</p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs text-muted-foreground px-1 pb-2">
+                <span>{toolsList.filter(t => !t.disabled).length} / {toolsList.length} tools enabled</span>
+              </div>
+              {toolsList.map(tool => (
+                <div
+                  key={tool.name}
+                  className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border transition-all ${
+                    tool.disabled 
+                      ? "bg-muted/30 border-border/30 opacity-60" 
+                      : "bg-background border-border/50 hover:border-primary/30"
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-mono font-medium truncate ${tool.disabled ? "text-muted-foreground line-through" : "text-foreground"}`}>
+                        {tool.name}
+                      </span>
+                    </div>
+                    {tool.description && (
+                      <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{tool.description}</p>
+                    )}
+                  </div>
+                  <Button
+                    variant={tool.disabled ? "outline" : "default"}
+                    size="sm"
+                    className={`h-7 px-2.5 gap-1.5 shrink-0 text-xs ${
+                      tool.disabled 
+                        ? "text-muted-foreground" 
+                        : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                    }`}
+                    disabled={toolsUpdating === tool.name}
+                    onClick={() => handleToggleTool(tool.name, tool.disabled)}
+                  >
+                    {toolsUpdating === tool.name ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : tool.disabled ? (
+                      <><EyeOff className="size-3" /> Off</>
+                    ) : (
+                      <><Eye className="size-3" /> On</>
+                    )}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Floating Batch Action Bar ─── */}
+      {selectedServers.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-background/95 backdrop-blur-md border shadow-lg rounded-xl px-4 py-2.5 animate-in slide-in-from-bottom-4 fade-in duration-300">
+          <span className="text-sm font-semibold px-1">
+            {selectedServers.size} selected
+          </span>
+          <Separator orientation="vertical" className="h-5 mx-1" />
+          <Button variant="ghost" size="sm" className="h-8 text-xs px-3" onClick={selectAllFiltered}>
+            Select All
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs gap-1.5 px-3"
+            onClick={handleBatchTest}
+            disabled={batchTesting || batchDeleting}
+          >
+            {batchTesting ? <Loader2 className="size-3 animate-spin" /> : <Zap className="size-3" />}
+            {batchTesting ? "Testing..." : "Test"}
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="h-8 text-xs gap-1.5 px-3"
+            onClick={() => setBatchDeleteOpen(true)}
+            disabled={batchTesting || batchDeleting}
+          >
+            <Trash2 className="size-3" />
+            Delete
+          </Button>
+          <Button variant="ghost" size="icon" className="size-8 text-muted-foreground ml-1" onClick={deselectAll}>
+            <X className="size-4" />
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
