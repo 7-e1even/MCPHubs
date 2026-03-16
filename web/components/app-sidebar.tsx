@@ -10,6 +10,7 @@ import {
   Moon,
   Sun,
   ScrollText,
+  Bug,
 } from "lucide-react"
 
 import {
@@ -40,6 +41,11 @@ const navMain = [
     title: "Logs",
     url: "/logs",
     icon: ScrollText,
+  },
+  {
+    title: "Debug",
+    url: "/debug",
+    icon: Bug,
   },
 ]
 

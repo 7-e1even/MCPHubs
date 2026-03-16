@@ -252,3 +252,47 @@ export async function fetchAuditLogs(params: {
 export async function fetchAuditStats(): Promise<AuditStats> {
   return fetchAPI<AuditStats>("/api/audit/stats")
 }
+
+// ─── Debug / Test API ─────────────────────────────────────
+export interface ToolInfo {
+  name: string
+  description: string
+  inputSchema: Record<string, unknown>
+}
+
+export interface TestResult {
+  status: string
+  connected: boolean
+  elapsed_ms: number
+  tools_count: number
+  tools: ToolInfo[]
+  error?: string
+}
+
+export interface CallToolResult {
+  status: string
+  elapsed_ms: number
+  tool_name: string
+  result?: { type: string; text?: string; data?: string }[]
+  error?: string
+}
+
+export async function testServer(name: string): Promise<TestResult> {
+  return fetchAPI<TestResult>(`/api/servers/${encodeURIComponent(name)}/test`, {
+    method: "POST",
+  })
+}
+
+export async function callServerTool(
+  name: string,
+  toolName: string,
+  args: Record<string, unknown> = {}
+): Promise<CallToolResult> {
+  return fetchAPI<CallToolResult>(
+    `/api/servers/${encodeURIComponent(name)}/call-tool`,
+    {
+      method: "POST",
+      body: JSON.stringify({ tool_name: toolName, arguments: args }),
+    }
+  )
+}

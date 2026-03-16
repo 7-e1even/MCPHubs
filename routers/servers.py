@@ -7,6 +7,7 @@ CRUD API for MCP Server 注册/注销/查看 + JSON 批量导入导出。
 from __future__ import annotations
 
 import json
+import time
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
@@ -227,6 +228,110 @@ async def analyze_all_servers(
             results["errors"].append({"name": name, "error": "LLM 未配置或调用失败"})
 
     return results
+
+
+# ─── 调试 / 测试 ────────────────────────────────────────
+
+
+class CallToolRequest(BaseModel):
+    tool_name: str
+    arguments: dict[str, Any] = Field(default_factory=dict)
+
+
+@router.post("/{name}/test")
+async def test_server(name: str, _user: str = Depends(get_current_user)):
+    """
+    测试 MCP Server 连接：尝试连接并获取 tools 列表。
+
+    返回连接状态、耗时(ms)、工具列表。
+    """
+    if name not in _r():
+        raise HTTPException(404, f"Server '{name}' 不存在")
+
+    info = _r().get(name)
+    cfg = MCPServerConfig(**{k: info[k] for k in MCPServerConfig.model_fields if k in info})
+
+    start = time.time()
+    try:
+        factory = create_client_factory(cfg)
+        async with factory() as client:
+            tools_result = await client.list_tools()
+            elapsed_ms = round((time.time() - start) * 1000)
+            tools = [
+                {
+                    "name": t.name,
+                    "description": t.description or "",
+                    "inputSchema": t.inputSchema if hasattr(t, "inputSchema") else {},
+                }
+                for t in tools_result
+            ]
+            # 更新 registry 状态
+            await _r().set_status(name, "connected")
+            return {
+                "status": "ok",
+                "connected": True,
+                "elapsed_ms": elapsed_ms,
+                "tools_count": len(tools),
+                "tools": tools,
+            }
+    except Exception as e:
+        elapsed_ms = round((time.time() - start) * 1000)
+        await _r().set_status(name, "error", str(e))
+        return {
+            "status": "error",
+            "connected": False,
+            "elapsed_ms": elapsed_ms,
+            "error": str(e),
+            "tools_count": 0,
+            "tools": [],
+        }
+
+
+@router.post("/{name}/call-tool")
+async def call_tool(name: str, req: CallToolRequest, _user: str = Depends(get_current_user)):
+    """
+    手动调用 MCP Server 的某个工具。
+
+    连接 Server，执行 call_tool，返回结果。
+    """
+    if name not in _r():
+        raise HTTPException(404, f"Server '{name}' 不存在")
+
+    info = _r().get(name)
+    cfg = MCPServerConfig(**{k: info[k] for k in MCPServerConfig.model_fields if k in info})
+
+    start = time.time()
+    try:
+        factory = create_client_factory(cfg)
+        async with factory() as client:
+            result = await client.call_tool(req.tool_name, req.arguments)
+            elapsed_ms = round((time.time() - start) * 1000)
+
+            # 解析结果内容
+            contents = []
+            if hasattr(result, "content") and result.content:
+                for item in result.content:
+                    if hasattr(item, "text"):
+                        contents.append({"type": "text", "text": item.text})
+                    else:
+                        contents.append({"type": str(type(item).__name__), "data": str(item)})
+            else:
+                contents = [{"type": "text", "text": str(result)}]
+
+            return {
+                "status": "ok",
+                "elapsed_ms": elapsed_ms,
+                "tool_name": req.tool_name,
+                "result": contents,
+            }
+    except Exception as e:
+        elapsed_ms = round((time.time() - start) * 1000)
+        return {
+            "status": "error",
+            "elapsed_ms": elapsed_ms,
+            "tool_name": req.tool_name,
+            "error": str(e),
+        }
 
 
 # ─── JSON 批量导入 ────────────────────────────────────────

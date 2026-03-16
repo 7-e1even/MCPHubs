@@ -23,6 +23,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
+  Zap,
+  Loader2,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -32,6 +35,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -49,6 +53,7 @@ import {
   updateServer,
   importServers,
   exportServers,
+  testServer,
   isLoggedIn,
   type MCPServer,
   type ImportResult,
@@ -105,6 +110,12 @@ export default function ServersPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
+  // Batch selection state
+  const [selectedServers, setSelectedServers] = useState<Set<string>>(new Set())
+  const [batchDeleteOpen, setBatchDeleteOpen] = useState(false)
+  const [batchDeleting, setBatchDeleting] = useState(false)
+  const [batchTesting, setBatchTesting] = useState(false)
+
   // Edit dialog state
   const [editServer, setEditServer] = useState<MCPServer | null>(null)
   const [editDesc, setEditDesc] = useState("")
@@ -137,6 +148,80 @@ export default function ServersPage() {
     loadServers()
   }, [router, loadServers])
 
+  // ─── Test All ───
+  const [testingAll, setTestingAll] = useState(false)
+  
+  const handleTestAll = async () => {
+    if (servers.length === 0) return
+    setTestingAll(true)
+    let updated = false
+    try {
+      for (const s of servers) {
+        try {
+          await testServer(s.name)
+          updated = true
+        } catch {
+          updated = true // even if it errors we might have updated status
+        }
+      }
+    } finally {
+      if (updated) {
+        await loadServers()
+      }
+      setTestingAll(false)
+    }
+  }
+
+  // ─── Batch Selection ───
+  const toggleSelect = (name: string) => {
+    setSelectedServers((prev) => {
+      const next = new Set(prev)
+      if (next.has(name)) next.delete(name)
+      else next.add(name)
+      return next
+    })
+  }
+
+  const deselectAll = () => {
+    setSelectedServers(new Set())
+  }
+
+  // ─── Batch Delete ───
+  const handleBatchDelete = async () => {
+    setBatchDeleting(true)
+    try {
+      for (const name of selectedServers) {
+        try {
+          await deleteServer(name)
+        } catch {
+          // continue deleting rest
+        }
+      }
+      setSelectedServers(new Set())
+      setBatchDeleteOpen(false)
+      await loadServers()
+    } finally {
+      setBatchDeleting(false)
+    }
+  }
+
+  // ─── Batch Test ───
+  const handleBatchTest = async () => {
+    setBatchTesting(true)
+    try {
+      for (const name of selectedServers) {
+        try {
+          await testServer(name)
+        } catch {
+          // continue
+        }
+      }
+      await loadServers()
+    } finally {
+      setBatchTesting(false)
+    }
+  }
+
   // Filtered servers
   const filteredServers = useMemo(() => {
     let result = servers
@@ -161,6 +246,19 @@ export default function ServersPage() {
     return result
   }, [servers, search, filterTransport, filterStatus])
 
+  // Batch selection helpers (depend on filteredServers)
+  const selectAllFiltered = useCallback(() => {
+    setSelectedServers(new Set(filteredServers.map((s) => s.name)))
+  }, [filteredServers])
+
+  const isAllFilteredSelected =
+    filteredServers.length > 0 && filteredServers.every((s) => selectedServers.has(s.name))
+
+  const toggleSelectAll = useCallback(() => {
+    if (isAllFilteredSelected) deselectAll()
+    else selectAllFiltered()
+  }, [isAllFilteredSelected, selectAllFiltered])
+
   // Unique values for filters
   const transportOptions = useMemo(() => [...new Set(servers.map((s) => s.transport))], [servers])
   const statusOptions = useMemo(() => [...new Set(servers.map((s) => s.status || "registered"))], [servers])
@@ -169,6 +267,11 @@ export default function ServersPage() {
   useEffect(() => {
     setCurrentPage(1)
   }, [search, viewMode, filterTransport, filterStatus])
+
+  // Clear selection on filter/search change
+  useEffect(() => {
+    setSelectedServers(new Set())
+  }, [search, filterTransport, filterStatus])
 
   // Paged servers
   const pageSize = viewMode === "card" ? PAGE_SIZE_CARD : PAGE_SIZE_LIST
@@ -408,6 +511,17 @@ export default function ServersPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Test All Button */}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleTestAll} 
+            disabled={testingAll || servers.length === 0}
+          >
+            {testingAll ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Zap className="size-4 mr-2" />}
+            {testingAll ? "Testing..." : "Test All"}
+          </Button>
+
           {/* Export Dialog */}
           <Dialog open={exportOpen} onOpenChange={(open) => { setExportOpen(open); if (!open) setExportData("") }}>
             <DialogTrigger asChild>
@@ -595,6 +709,43 @@ export default function ServersPage() {
               </SelectContent>
             </Select>
           </div>
+
+          {/* ─── Inline Batch Action Bar ─── */}
+          {selectedServers.size > 0 && (
+            <div className="flex items-center gap-2 bg-background border shadow-sm rounded-md px-3 py-1.5 animate-in fade-in duration-200 shrink-0">
+              <span className="text-sm font-medium px-1">
+                {selectedServers.size} selected
+              </span>
+              <Separator orientation="vertical" className="h-4 mx-1" />
+              <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={selectAllFiltered}>
+                Select All
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1.5 px-2.5"
+                onClick={handleBatchTest}
+                disabled={batchTesting || batchDeleting}
+              >
+                {batchTesting ? <Loader2 className="size-3 animate-spin" /> : <Zap className="size-3" />}
+                {batchTesting ? "Testing..." : "Test"}
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-7 text-xs gap-1.5 px-2.5"
+                onClick={() => setBatchDeleteOpen(true)}
+                disabled={batchTesting || batchDeleting}
+              >
+                <Trash2 className="size-3" />
+                Delete
+              </Button>
+              <Button variant="ghost" size="icon" className="size-7 text-muted-foreground ml-1" onClick={deselectAll}>
+                <X className="size-3.5" />
+              </Button>
+            </div>
+          )}
+
           <div className="flex shrink-0 items-center rounded-4xl bg-muted p-1 h-9">
             <button
               onClick={() => setViewMode("card")}
@@ -644,51 +795,130 @@ export default function ServersPage() {
       ) : viewMode === "card" ? (
         /* ─── Card View ─── */
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {pagedServers.map((s) => (
-            <Card key={s.name} className="group hover:border-primary/40 transition-all hover:shadow-md">
-              <CardHeader className="flex flex-row items-start justify-between pb-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="bg-primary/10 p-2.5 rounded-lg shrink-0 relative">
-                    {s.transport === "stdio" ? <Terminal className="size-4 text-primary" /> : <Globe className="size-4 text-primary" />}
-                    <span className="absolute -top-0.5 -right-0.5">{statusDot(s)}</span>
-                  </div>
-                  <div className="min-w-0">
-                    <CardTitle className="text-sm font-semibold truncate">{s.name}</CardTitle>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <Badge variant="outline" className="text-[11px]">{s.transport}</Badge>
+          {pagedServers.map((s) => {
+            const isSelected = selectedServers.has(s.name)
+            return (
+              <Card
+                key={s.name}
+                className={`group hover:border-primary/40 transition-all hover:shadow-md relative ${
+                  isSelected ? "border-primary/50 bg-primary/[0.02] shadow-sm" : ""
+                }`}
+              >
+                {/* Card Checkbox */}
+                <div className={`absolute top-3 left-3 z-10 transition-opacity ${
+                  isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                }`}>
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleSelect(s.name)}
+                  />
+                </div>
+                <CardHeader className="flex flex-row items-start justify-between pb-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="bg-primary/10 p-2.5 rounded-lg shrink-0 relative">
+                      {s.transport === "stdio" ? <Terminal className="size-4 text-primary" /> : <Globe className="size-4 text-primary" />}
+                      <span className="absolute -top-0.5 -right-0.5">{statusDot(s)}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <CardTitle className="text-sm font-semibold truncate">{s.name}</CardTitle>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Badge variant="outline" className="text-[11px]">{s.transport}</Badge>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => openEditDialog(s)}>
-                    <Pencil className="size-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(s.name)}>
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {s.description && (
-                  <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{s.description}</p>
-                )}
-                <p className="font-mono text-xs text-muted-foreground/60 truncate" title={serverDesc(s)}>
-                  {serverDesc(s)}
-                </p>
-                {s.env && Object.keys(s.env).length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {Object.keys(s.env).slice(0, 3).map((k) => (
-                      <Badge key={k} variant="secondary" className="text-[10px] font-mono">{k}</Badge>
-                    ))}
-                    {Object.keys(s.env).length > 3 && (
-                      <Badge variant="secondary" className="text-[10px]">+{Object.keys(s.env).length - 3}</Badge>
-                    )}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => openEditDialog(s)}>
+                      <Pencil className="size-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget(s.name)}>
+                      <Trash2 className="size-4" />
+                    </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {s.description && (
+                    <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{s.description}</p>
+                  )}
+                  <p className="font-mono text-xs text-muted-foreground/60 truncate" title={serverDesc(s)}>
+                    {serverDesc(s)}
+                  </p>
+                  {s.env && Object.keys(s.env).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {Object.keys(s.env).slice(0, 3).map((k) => (
+                        <Badge key={k} variant="secondary" className="text-[10px] font-mono">{k}</Badge>
+                      ))}
+                      {Object.keys(s.env).length > 3 && (
+                        <Badge variant="secondary" className="text-[10px]">+{Object.keys(s.env).length - 3}</Badge>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
+      ) : null}
+
+      {viewMode === "list" && filteredServers.length > 0 ? (
+        /* ─── List View ─── */
+        <Card className="shadow-sm">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    checked={isAllFilteredSelected}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
+                <TableHead className="w-[180px]">Name</TableHead>
+                <TableHead className="w-[100px]">Transport</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="w-[100px]">Env</TableHead>
+                <TableHead className="w-[80px] text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pagedServers.map((s) => (
+                <TableRow key={s.name} className={`group ${selectedServers.has(s.name) ? "bg-primary/[0.03]" : ""}`}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedServers.has(s.name)}
+                      onCheckedChange={() => toggleSelect(s.name)}
+                    />
+                  </TableCell>
+                  <TableCell className="font-semibold text-sm">
+                    <span className="flex items-center gap-2">
+                      {statusDot(s)}
+                      {s.name}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-[11px]">{s.transport}</Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground truncate max-w-[300px]">
+                    {s.description || <span className="font-mono text-muted-foreground/50" title={serverDesc(s)}>{serverDesc(s)}</span>}
+                  </TableCell>
+                  <TableCell>
+                    {s.env && Object.keys(s.env).length > 0 && (
+                      <Badge variant="secondary" className="text-[10px]">{Object.keys(s.env).length} vars</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-primary" onClick={() => openEditDialog(s)}>
+                        <Pencil className="size-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(s.name)}>
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
       ) : null}
 
       {/* ─── Pagination ─── */}
@@ -731,56 +961,6 @@ export default function ServersPage() {
         </div>
       )}
 
-      {viewMode === "list" && filteredServers.length > 0 ? (
-        /* ─── List View ─── */
-        <Card className="shadow-sm">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[180px]">Name</TableHead>
-                <TableHead className="w-[100px]">Transport</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="w-[100px]">Env</TableHead>
-                <TableHead className="w-[80px] text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pagedServers.map((s) => (
-                <TableRow key={s.name} className="group">
-                  <TableCell className="font-semibold text-sm">
-                    <span className="flex items-center gap-2">
-                      {statusDot(s)}
-                      {s.name}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-[11px]">{s.transport}</Badge>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground truncate max-w-[300px]">
-                    {s.description || <span className="font-mono text-muted-foreground/50" title={serverDesc(s)}>{serverDesc(s)}</span>}
-                  </TableCell>
-                  <TableCell>
-                    {s.env && Object.keys(s.env).length > 0 && (
-                      <Badge variant="secondary" className="text-[10px]">{Object.keys(s.env).length} vars</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-primary" onClick={() => openEditDialog(s)}>
-                        <Pencil className="size-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(s.name)}>
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
-      ) : null}
-
       {/* ─── Edit Dialog ─── */}
       <Dialog open={!!editServer} onOpenChange={(open) => { if (!open) setEditServer(null) }}>
         <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
@@ -822,6 +1002,32 @@ export default function ServersPage() {
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleteLoading}>
               {deleteLoading ? "Deleting…" : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Batch Delete Confirm Dialog ─── */}
+      <Dialog open={batchDeleteOpen} onOpenChange={(open) => { if (!open && !batchDeleting) setBatchDeleteOpen(false) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Batch Delete Servers</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the following {selectedServers.size} server(s)? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[200px] overflow-y-auto space-y-1 py-2">
+            {[...selectedServers].map((name) => (
+              <div key={name} className="flex items-center gap-2 text-sm py-1 px-2 rounded bg-muted/50">
+                <ServerIcon className="size-3.5 text-muted-foreground" />
+                <span className="font-medium">{name}</span>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBatchDeleteOpen(false)} disabled={batchDeleting}>Cancel</Button>
+            <Button variant="destructive" onClick={handleBatchDelete} disabled={batchDeleting}>
+              {batchDeleting ? <><Loader2 className="size-4 mr-2 animate-spin" />Deleting…</> : `Delete ${selectedServers.size} Servers`}
             </Button>
           </DialogFooter>
         </DialogContent>

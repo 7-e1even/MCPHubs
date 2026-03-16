@@ -155,78 +155,87 @@ export default function DashboardPage() {
       </div>
 
       {/* ─── Quick Connect ─── */}
-      <Card className="border-primary/20 bg-primary/5 shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-primary text-lg">
-            <Terminal className="size-5" />
-            Quick Connect
-          </CardTitle>
-          <CardDescription>
-            复制以下 JSON 配置到对应工具即可接入 McpHub 的所有 MCP Server。
-          </CardDescription>
+      <Card className="border-border/60 shadow-sm bg-gradient-to-br from-card to-muted/20 overflow-hidden relative">
+        <div className="absolute right-0 top-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none" />
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-background border shadow-sm p-2.5 rounded-xl">
+              <Terminal className="size-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-lg font-semibold tracking-tight">Quick Connect</CardTitle>
+              <CardDescription className="text-sm mt-0.5">
+                复制以下 JSON 配置到对应工具即刻接入所有 MCP Server
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative z-10">
           <Tabs defaultValue="cursor" className="w-full">
-            <TabsList className="grid w-full sm:w-[480px] grid-cols-3">
-              <TabsTrigger value="cursor">Cursor / Windsurf</TabsTrigger>
-              <TabsTrigger value="claude">Claude Desktop</TabsTrigger>
-              <TabsTrigger value="vscode">VS Code</TabsTrigger>
+            <TabsList className="inline-flex h-9 items-center justify-start rounded-lg bg-muted/50 p-1 text-muted-foreground w-max max-w-full overflow-x-auto">
+              <TabsTrigger value="cursor" className="px-3 text-[13px] whitespace-nowrap">Cursor / Windsurf</TabsTrigger>
+              <TabsTrigger value="claude" className="px-3 text-[13px] whitespace-nowrap">Claude Desktop</TabsTrigger>
+              <TabsTrigger value="vscode" className="px-3 text-[13px] whitespace-nowrap">VS Code</TabsTrigger>
             </TabsList>
-            <div className="mt-4">
-              <TabsContent value="cursor" className="space-y-3 m-0">
-                <p className="text-sm text-muted-foreground">
-                  打开 <strong>Settings → Features → MCP Servers</strong>，点击 <strong>+ Add new MCP Server</strong>，选择 <strong>type: url</strong>，粘贴以下 JSON：
+            <div className="mt-5">
+              <TabsContent value="cursor" className="space-y-3 m-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                  打开 <Badge variant="secondary" className="font-normal rounded-md shadow-sm">Settings → Features → MCP Servers</Badge>，
+                  点击 <Badge variant="outline" className="font-normal rounded-md bg-background shadow-sm">+ Add new MCP Server</Badge>，
+                  选择 <Badge variant="secondary" className="font-normal rounded-md shadow-sm">type: url</Badge>，粘贴以下 JSON：
                 </p>
-                <div className="relative">
-                  <pre className="p-4 rounded-md bg-zinc-950 text-zinc-50 text-xs font-mono overflow-x-auto">
+                <div className="relative group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-primary/0 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur"></div>
+                  <pre className="relative p-4 rounded-xl bg-zinc-950/90 backdrop-blur border border-zinc-800/50 shadow-inner text-zinc-300 text-[13px] font-mono overflow-x-auto leading-relaxed">
                     {cursorConfig}
                   </pre>
                   <Button
-                    size="sm"
-                    variant="outline"
-                    className="absolute top-2 right-2 h-7 px-2 bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                    size="icon"
+                    variant="ghost"
+                    className="absolute top-2.5 right-2.5 h-8 w-8 text-zinc-500 hover:bg-zinc-800/80 hover:text-zinc-100 transition-colors rounded-lg"
                     onClick={() => copyToClipboard(cursorConfig, "cursor")}
                   >
-                    {copiedKey === "cursor" ? <Check className="size-3.5 mr-1" /> : <Copy className="size-3.5 mr-1" />}
-                    {copiedKey === "cursor" ? "Copied" : "Copy"}
+                    {copiedKey === "cursor" ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
                   </Button>
                 </div>
               </TabsContent>
-              <TabsContent value="claude" className="space-y-3 m-0">
-                <p className="text-sm text-muted-foreground">
-                  将以下内容添加到 <code className="bg-muted px-1 py-0.5 rounded text-[11px]">claude_desktop_config.json</code> 文件中：
+              
+              <TabsContent value="claude" className="space-y-3 m-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                  将以下内容添加到 <Badge variant="secondary" className="font-mono font-normal rounded-md shadow-sm">claude_desktop_config.json</Badge> 文件中：
                 </p>
-                <div className="relative">
-                  <pre className="p-4 rounded-md bg-zinc-950 text-zinc-50 text-xs font-mono overflow-x-auto">
+                <div className="relative group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-primary/0 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur"></div>
+                  <pre className="relative p-4 rounded-xl bg-zinc-950/90 backdrop-blur border border-zinc-800/50 shadow-inner text-zinc-300 text-[13px] font-mono overflow-x-auto leading-relaxed">
                     {claudeConfig}
                   </pre>
                   <Button
-                    size="sm"
-                    variant="outline"
-                    className="absolute top-2 right-2 h-7 px-2 bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                    size="icon"
+                    variant="ghost"
+                    className="absolute top-2.5 right-2.5 h-8 w-8 text-zinc-500 hover:bg-zinc-800/80 hover:text-zinc-100 transition-colors rounded-lg"
                     onClick={() => copyToClipboard(claudeConfig, "claude")}
                   >
-                    {copiedKey === "claude" ? <Check className="size-3.5 mr-1" /> : <Copy className="size-3.5 mr-1" />}
-                    {copiedKey === "claude" ? "Copied" : "Copy"}
+                    {copiedKey === "claude" ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
                   </Button>
                 </div>
               </TabsContent>
-              <TabsContent value="vscode" className="space-y-3 m-0">
-                <p className="text-sm text-muted-foreground">
-                  将以下内容添加到 <code className="bg-muted px-1 py-0.5 rounded text-[11px]">.vscode/settings.json</code> 中：
+              
+              <TabsContent value="vscode" className="space-y-3 m-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                  将以下内容添加到 <Badge variant="secondary" className="font-mono font-normal rounded-md shadow-sm">.vscode/settings.json</Badge> 中：
                 </p>
-                <div className="relative">
-                  <pre className="p-4 rounded-md bg-zinc-950 text-zinc-50 text-xs font-mono overflow-x-auto">
+                <div className="relative group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-primary/0 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur"></div>
+                  <pre className="relative p-4 rounded-xl bg-zinc-950/90 backdrop-blur border border-zinc-800/50 shadow-inner text-zinc-300 text-[13px] font-mono overflow-x-auto leading-relaxed">
                     {vscodeConfig}
                   </pre>
                   <Button
-                    size="sm"
-                    variant="outline"
-                    className="absolute top-2 right-2 h-7 px-2 bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                    size="icon"
+                    variant="ghost"
+                    className="absolute top-2.5 right-2.5 h-8 w-8 text-zinc-500 hover:bg-zinc-800/80 hover:text-zinc-100 transition-colors rounded-lg"
                     onClick={() => copyToClipboard(vscodeConfig, "vscode")}
                   >
-                    {copiedKey === "vscode" ? <Check className="size-3.5 mr-1" /> : <Copy className="size-3.5 mr-1" />}
-                    {copiedKey === "vscode" ? "Copied" : "Copy"}
+                    {copiedKey === "vscode" ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
                   </Button>
                 </div>
               </TabsContent>
