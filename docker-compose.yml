@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mcphubs
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      MCPHUBS_HOST: "0.0.0.0"
+      MCPHUBS_PORT: "8000"
+      MCPHUBS_DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres:5432/mcphubs"
+      MCPHUBS_JWT_SECRET: "${MCPHUBS_JWT_SECRET:-change-me-to-a-random-string}"
+      MCPHUBS_ADMIN_USERNAME: "${MCPHUBS_ADMIN_USERNAME:-admin}"
+      MCPHUBS_ADMIN_PASSWORD: "${MCPHUBS_ADMIN_PASSWORD:-admin123}"
+      MCPHUBS_EXPOSURE_MODE: "${MCPHUBS_EXPOSURE_MODE:-progressive}"
+
+  frontend:
+    build: ./web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      HOSTNAME: "0.0.0.0"
+
+volumes:
+  pgdata:

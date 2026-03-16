@@ -1,0 +1,10 @@
+# Backend .dockerignore
+__pycache__
+*.pyc
+.env
+.idea
+.venv
+venv
+web/node_modules
+web/.next
+web/.git
