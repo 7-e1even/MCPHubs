@@ -38,14 +38,14 @@ const navMain = [
     icon: Server,
   },
   {
-    title: "Logs",
-    url: "/logs",
-    icon: ScrollText,
-  },
-  {
     title: "Debug",
     url: "/debug",
     icon: Bug,
+  },
+  {
+    title: "Logs",
+    url: "/logs",
+    icon: ScrollText,
   },
 ]
 

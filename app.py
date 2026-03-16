@@ -116,7 +116,15 @@ def create_app() -> FastAPI:
             proxy = MCPProxy(config, registry)
             logger.info("暴露模式: full")
 
+        # 同步 ModelScope URLs (阻塞式第一次同步，确保启动即用最新)
+        from services.modelscope import sync_modelscope_urls, keepalive_modelscope_task
+        import asyncio
+        await sync_modelscope_urls()
+
         await proxy.load_all()
+
+        # 启动后台护航任务 (每小时自动同步)
+        ms_task = asyncio.create_task(keepalive_modelscope_task(proxy))
 
         # 注入到 routers
         servers_router.inject(registry, proxy)
@@ -136,6 +144,7 @@ def create_app() -> FastAPI:
             yield
 
         # 关闭
+        ms_task.cancel()
         await engine.dispose()
 
     # --- FastAPI App ---

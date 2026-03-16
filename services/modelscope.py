@@ -128,3 +128,54 @@ async def fetch_modelscope_servers(token: str | None = None) -> list[dict[str, A
 
     logger.info(f"从 ModelScope 获取到 {len(servers)} 个 MCP Server")
     return servers
+
+
+async def sync_modelscope_urls() -> bool:
+    """仅同步 URL 到数据库中的已注册服务，返回是否发生改变"""
+    token = await _get_modelscope_token()
+    if not token:
+        return False
+        
+    try:
+        servers = await fetch_modelscope_servers(token)
+        url_map = {s["name"]: s["url"] for s in servers}
+        
+        factory = get_session_factory()
+        changed = False
+        async with factory() as session:
+            from sqlalchemy import select
+            from db.models import MCPServerModel
+            result = await session.execute(
+                select(MCPServerModel).where(
+                    MCPServerModel.name.startswith("ms-"),
+                    MCPServerModel.enabled == True
+                )
+            )
+            for db_server in result.scalars().all():
+                new_url = url_map.get(db_server.name)
+                if new_url and db_server.url != new_url:
+                    db_server.url = new_url
+                    changed = True
+            if changed:
+                await session.commit()
+                logger.info("ModelScope URLs 已同步最新到数据库")
+        return changed
+    except Exception as e:
+        logger.error(f"同步 ModelScope URLs 失败: {e}")
+        return False
+
+
+async def keepalive_modelscope_task(proxy):
+    """后台任务：每小时自动同步一次"""
+    import asyncio
+    while True:
+        await asyncio.sleep(3600)  # 1小时
+        try:
+            changed = await sync_modelscope_urls()
+            if changed:
+                logger.info("后台定时任务发现 URL 更新，重载 proxy...")
+                await proxy.load_all()
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"keepalive_modelscope_task 出错: {e}")

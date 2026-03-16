@@ -158,25 +158,21 @@ class ProgressiveProxy:
             return json.dumps(result, ensure_ascii=False)
 
         @self._mcp.tool
-        async def list_tools(mcp_name: str, verbose: bool = False) -> str:
+        async def list_tools(mcp_name: str) -> str:
             """
-            列出指定 MCP Server 的所有可用工具。
+            列出指定 MCP Server 的所有可用工具及其完整参数定义。
+            返回每个工具的 name、description 和 parameters（JSON Schema）。
+            你应当根据返回的 parameters 来构造 call_tool 的 arguments 参数。
 
             参数:
               mcp_name: MCP 名称（通过 list_servers 获取）
-              verbose: 是否返回完整参数 schema（默认 false，只返回名称和描述）
             """
             if mcp_name not in factories:
                 return json.dumps({"error": f"MCP '{mcp_name}' 不存在"})
 
             cached = tools_cache.get(mcp_name)
             if cached is not None:
-                if verbose:
-                    return json.dumps(cached, ensure_ascii=False)
-                return json.dumps(
-                    [{"name": t["name"], "description": t["description"]} for t in cached],
-                    ensure_ascii=False,
-                )
+                return json.dumps(cached, ensure_ascii=False)
 
             # 缓存未命中（理论上不应发生），实时拉取
             factory = factories[mcp_name]
@@ -192,12 +188,7 @@ class ProgressiveProxy:
                         for t in tools
                     ]
                     tools_cache[mcp_name] = items
-                    if verbose:
-                        return json.dumps(items, ensure_ascii=False)
-                    return json.dumps(
-                        [{"name": t["name"], "description": t["description"]} for t in items],
-                        ensure_ascii=False,
-                    )
+                    return json.dumps(items, ensure_ascii=False)
             except Exception as e:
                 return json.dumps({"error": str(e)})
 
@@ -251,8 +242,12 @@ class ProgressiveProxy:
             try:
                 async with factory() as client:
                     result = await client.call_tool(tool_name, args)
+                    # result 可能是 CallToolResult 对象或可迭代的 content list
+                    content = getattr(result, "content", result) or []
+                    if not hasattr(content, "__iter__"):
+                        content = [content]
                     texts = []
-                    for item in result:
+                    for item in content:
                         if hasattr(item, "text"):
                             texts.append(item.text)
                         else:
