@@ -146,7 +146,7 @@ export default function DashboardPage() {
   }, null, 2)
 
   const claudeConfig = apiKey
-    ? `claude mcp add --transport http --header "Authorization: Bearer \${MCPHUBS_API_KEY}" mcphubs ${mcpUrl}\n\n# 运行前先设置环境变量:\n# export MCPHUBS_API_KEY="${apiKey}"`
+    ? `claude mcp add --transport http --header "Authorization: Bearer ${apiKey}" mcphubs ${mcpUrl}`
     : `claude mcp add --transport http mcphubs ${mcpUrl}`
 
   const vscodeConfig = JSON.stringify({

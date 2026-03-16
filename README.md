@@ -144,7 +144,7 @@ claude mcp add --transport http mcphubs http://localhost:3000/mcp
 With API Key authentication:
 
 ```bash
-claude mcp add --transport http --header "Authorization: Bearer ${MCPHUBS_API_KEY}" mcphubs http://localhost:3000/mcp
+claude mcp add --transport http --header "Authorization: Bearer YOUR_API_KEY" mcphubs http://localhost:3000/mcp
 ```
 
 ### VS Code
