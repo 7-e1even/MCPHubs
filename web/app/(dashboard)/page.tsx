@@ -17,6 +17,70 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { fetchHealth, fetchServers, getSettings, isLoggedIn, type MCPServer, type HealthResponse } from "@/lib/api"
 import { useRouter } from "next/navigation"
 
+// Circular Progress Component
+function CircularProgress({ 
+  value, 
+  title, 
+  subtitle, 
+  colorClass 
+}: { 
+  value: number; 
+  title: string; 
+  subtitle?: string; 
+  colorClass: string; 
+}) {
+  const radius = 36;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (value / 100) * circumference;
+
+  return (
+    <div className="relative flex flex-col items-center justify-center p-2">
+      <div className="relative w-24 h-24">
+        {/* Background Ring */}
+        <svg className="w-full h-full transform -rotate-90">
+          <circle
+            cx="48"
+            cy="48"
+            r={radius}
+            stroke="currentColor"
+            strokeWidth="8"
+            fill="transparent"
+            className="text-muted/30"
+          />
+          {/* Progress Ring */}
+          <circle
+            cx="48"
+            cy="48"
+            r={radius}
+            stroke="currentColor"
+            strokeWidth="8"
+            fill="transparent"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            className={`transition-all duration-1000 ease-out ${colorClass}`}
+            strokeLinecap="round"
+          />
+        </svg>
+        {/* Inner Text */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+          <span className="text-xl font-bold tracking-tighter">
+            {value.toFixed(1)}<span className="text-xs font-normal text-muted-foreground ml-0.5">%</span>
+          </span>
+          {subtitle && (
+            <span className="text-[10px] text-muted-foreground font-medium mt-0.5">
+              {subtitle}
+            </span>
+          )}
+        </div>
+      </div>
+      <span className="text-xs font-medium text-muted-foreground mt-3 flex items-center gap-1.5">
+        {title === "CPU" ? <Cpu className="size-3.5" /> : <MemoryStick className="size-3.5" />}
+        {title}
+      </span>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter()
   const [health, setHealth] = useState<HealthResponse | null>(null)
@@ -81,11 +145,9 @@ export default function DashboardPage() {
     }
   }, null, 2)
 
-  const claudeConfig = JSON.stringify({
-    mcpServers: {
-      mcphubs: buildServerEntry()
-    }
-  }, null, 2)
+  const claudeConfig = apiKey
+    ? `claude mcp add --transport http --header "Authorization: Bearer \${MCPHUBS_API_KEY}" mcphubs ${mcpUrl}\n\n# 运行前先设置环境变量:\n# export MCPHUBS_API_KEY="${apiKey}"`
+    : `claude mcp add --transport http mcphubs ${mcpUrl}`
 
   const vscodeConfig = JSON.stringify({
     mcp: {
@@ -183,7 +245,7 @@ export default function DashboardPage() {
           <Tabs defaultValue="cursor" className="w-full">
             <TabsList className="inline-flex h-9 items-center justify-start rounded-lg bg-muted/50 p-1 text-muted-foreground w-max max-w-full overflow-x-auto">
               <TabsTrigger value="cursor" className="px-3 text-[13px] whitespace-nowrap">Cursor / Windsurf</TabsTrigger>
-              <TabsTrigger value="claude" className="px-3 text-[13px] whitespace-nowrap">Claude Desktop</TabsTrigger>
+              <TabsTrigger value="claude" className="px-3 text-[13px] whitespace-nowrap">Claude Code</TabsTrigger>
               <TabsTrigger value="vscode" className="px-3 text-[13px] whitespace-nowrap">VS Code</TabsTrigger>
             </TabsList>
             <div className="mt-5">
@@ -195,7 +257,7 @@ export default function DashboardPage() {
                 </p>
                 <div className="relative group">
                   <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-primary/0 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur"></div>
-                  <pre className="relative p-4 rounded-xl bg-zinc-950/90 backdrop-blur border border-zinc-800/50 shadow-inner text-zinc-300 text-[13px] font-mono overflow-x-auto leading-relaxed">
+                  <pre className="relative p-4 rounded-xl bg-zinc-950/90 backdrop-blur border border-zinc-800/50 shadow-inner text-zinc-300 text-[13px] font-mono overflow-auto h-[280px] leading-relaxed">
                     {cursorConfig}
                   </pre>
                   <Button
@@ -211,11 +273,11 @@ export default function DashboardPage() {
               
               <TabsContent value="claude" className="space-y-3 m-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <p className="text-sm text-muted-foreground flex items-center gap-1.5 flex-wrap">
-                  将以下内容添加到 <Badge variant="secondary" className="font-mono font-normal rounded-md shadow-sm">claude_desktop_config.json</Badge> 文件中：
+                  在终端中运行以下 <Badge variant="secondary" className="font-mono font-normal rounded-md shadow-sm">Claude Code</Badge> CLI 命令：
                 </p>
                 <div className="relative group">
                   <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-primary/0 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur"></div>
-                  <pre className="relative p-4 rounded-xl bg-zinc-950/90 backdrop-blur border border-zinc-800/50 shadow-inner text-zinc-300 text-[13px] font-mono overflow-x-auto leading-relaxed">
+                  <pre className="relative p-4 rounded-xl bg-zinc-950/90 backdrop-blur border border-zinc-800/50 shadow-inner text-zinc-300 text-[13px] font-mono overflow-auto h-[280px] leading-relaxed whitespace-pre-wrap">
                     {claudeConfig}
                   </pre>
                   <Button
@@ -235,7 +297,7 @@ export default function DashboardPage() {
                 </p>
                 <div className="relative group">
                   <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-primary/0 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur"></div>
-                  <pre className="relative p-4 rounded-xl bg-zinc-950/90 backdrop-blur border border-zinc-800/50 shadow-inner text-zinc-300 text-[13px] font-mono overflow-x-auto leading-relaxed">
+                  <pre className="relative p-4 rounded-xl bg-zinc-950/90 backdrop-blur border border-zinc-800/50 shadow-inner text-zinc-300 text-[13px] font-mono overflow-auto h-[280px] leading-relaxed">
                     {vscodeConfig}
                   </pre>
                   <Button
@@ -265,6 +327,27 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
+            {/* CPU & Memory Rings */}
+            <div className="grid grid-cols-2 gap-3 pb-2 pt-1">
+              <div className="bg-background/50 rounded-xl border border-border/50 flex flex-col items-center justify-center py-4 relative overflow-hidden group">
+                <div className="absolute -inset-2 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500 blur-xl"></div>
+                <CircularProgress 
+                  value={health?.cpu_percent ?? 0} 
+                  title="CPU" 
+                  colorClass={(health?.cpu_percent ?? 0) > 80 ? 'text-red-500' : (health?.cpu_percent ?? 0) > 50 ? 'text-amber-500' : 'text-blue-500'}
+                />
+              </div>
+              <div className="bg-background/50 rounded-xl border border-border/50 flex flex-col items-center justify-center py-4 relative overflow-hidden group">
+                <div className="absolute -inset-2 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-500 blur-xl"></div>
+                <CircularProgress 
+                  value={health?.memory_percent ?? 0} 
+                  title="Memory" 
+                  subtitle={`${health?.memory_used_mb ?? 0} MB`}
+                  colorClass={(health?.memory_percent ?? 0) > 80 ? 'text-red-500' : (health?.memory_percent ?? 0) > 50 ? 'text-amber-500' : 'text-blue-500'}
+                />
+              </div>
+            </div>
+
             <div className="flex items-center justify-between bg-background/50 rounded-lg p-3 border border-border/50">
               <span className="text-xs font-medium text-muted-foreground">Status</span>
               <div className="flex items-center gap-2">
@@ -296,59 +379,6 @@ export default function DashboardPage() {
                 <Wrench className="size-3.5 text-muted-foreground" />
                 <span className="text-sm font-bold">{health?.total_tools ?? 0}</span>
               </div>
-            </div>
-
-            {/* CPU Usage */}
-            <div className="bg-background/50 rounded-lg p-3 border border-border/50 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <Cpu className="size-3.5 text-muted-foreground" />
-                  <span className="text-xs font-medium text-muted-foreground">CPU</span>
-                </div>
-                <span className={`text-sm font-bold ${
-                  (health?.cpu_percent ?? 0) > 80 ? 'text-red-500' :
-                  (health?.cpu_percent ?? 0) > 50 ? 'text-amber-500' : 'text-emerald-500'
-                }`}>
-                  {health?.cpu_percent ?? 0}%
-                </span>
-              </div>
-              <div className="h-1.5 w-full bg-muted/50 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    (health?.cpu_percent ?? 0) > 80 ? 'bg-red-500' :
-                    (health?.cpu_percent ?? 0) > 50 ? 'bg-amber-500' : 'bg-emerald-500'
-                  }`}
-                  style={{ width: `${Math.min(health?.cpu_percent ?? 0, 100)}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Memory Usage */}
-            <div className="bg-background/50 rounded-lg p-3 border border-border/50 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <MemoryStick className="size-3.5 text-muted-foreground" />
-                  <span className="text-xs font-medium text-muted-foreground">Memory</span>
-                </div>
-                <span className={`text-sm font-bold ${
-                  (health?.memory_percent ?? 0) > 80 ? 'text-red-500' :
-                  (health?.memory_percent ?? 0) > 50 ? 'text-amber-500' : 'text-emerald-500'
-                }`}>
-                  {health?.memory_used_mb ?? 0} MB
-                </span>
-              </div>
-              <div className="h-1.5 w-full bg-muted/50 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    (health?.memory_percent ?? 0) > 80 ? 'bg-red-500' :
-                    (health?.memory_percent ?? 0) > 50 ? 'bg-amber-500' : 'bg-emerald-500'
-                  }`}
-                  style={{ width: `${Math.min(health?.memory_percent ?? 0, 100)}%` }}
-                />
-              </div>
-              <p className="text-[10px] text-muted-foreground text-right">
-                {health?.memory_used_mb ?? 0} / {health?.memory_total_mb ?? 0} MB
-              </p>
             </div>
           </CardContent>
         </Card>

@@ -126,25 +126,40 @@ cd web && npm install && npm run build && npm run start
 
 将 MCPHubs 作为唯一的 MCP 端点添加：
 
+### Cursor / Windsurf
+
 ```json
 {
   "mcpServers": {
     "mcphubs": {
-      "url": "http://localhost:8000/mcp"
+      "type": "streamable-http",
+      "url": "http://localhost:3000/mcp"
     }
   }
 }
 ```
 
+### Claude Code
+
+```bash
+claude mcp add --transport http mcphubs http://localhost:3000/mcp
+```
+
 如果配置了 API Key 认证：
+
+```bash
+claude mcp add --transport http --header "Authorization: Bearer ${MCPHUBS_API_KEY}" mcphubs http://localhost:3000/mcp
+```
+
+### VS Code
 
 ```json
 {
-  "mcpServers": {
-    "mcphubs": {
-      "url": "http://localhost:8000/mcp",
-      "headers": {
-        "Authorization": "Bearer 你的_API_KEY"
+  "mcp": {
+    "servers": {
+      "mcphubs": {
+        "type": "streamable-http",
+        "url": "http://localhost:3000/mcp"
       }
     }
   }

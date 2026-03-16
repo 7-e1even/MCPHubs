@@ -16,6 +16,12 @@ _registry: Registry | None = None
 _proxy = None
 _name: str = "McpHub"
 _exposure_mode: str = "progressive"
+try:
+    import psutil
+    _proc = psutil.Process(os.getpid())
+    _proc.cpu_percent()  # Initial call to set the baseline
+except ImportError:
+    _proc = None
 
 
 def inject(registry: Registry, name: str, exposure_mode: str = "progressive", proxy=None) -> None:
@@ -27,11 +33,19 @@ def inject(registry: Registry, name: str, exposure_mode: str = "progressive", pr
 
 def _get_process_metrics() -> dict:
     """获取当前进程的 CPU 和内存占用"""
+    if not _proc:
+        return {
+            "cpu_percent": 0,
+            "memory_used_mb": 0,
+            "memory_total_mb": 0,
+            "memory_percent": 0,
+        }
+
     try:
         import psutil
-        proc = psutil.Process(os.getpid())
-        mem = proc.memory_info()
-        cpu = proc.cpu_percent(interval=0)
+        mem = _proc.memory_info()
+        # Returns CPU usage since last call (non-blocking)
+        cpu = _proc.cpu_percent(interval=None)
         sys_mem = psutil.virtual_memory()
         return {
             "cpu_percent": round(cpu, 1),
@@ -39,7 +53,7 @@ def _get_process_metrics() -> dict:
             "memory_total_mb": round(sys_mem.total / 1024 / 1024, 0),
             "memory_percent": round(mem.rss / sys_mem.total * 100, 1),
         }
-    except ImportError:
+    except Exception:
         return {
             "cpu_percent": 0,
             "memory_used_mb": 0,
