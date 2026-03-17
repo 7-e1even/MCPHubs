@@ -1,10 +1,26 @@
-# Backend .dockerignore
-__pycache__
-*.pyc
-.env
-.idea
-.venv
-venv
+# Version control
+.git
+.gitignore
+
+# Frontend (rebuilt in image)
 web/node_modules
 web/.next
-web/.git
+
+# IDE
+.vscode
+.idea
+*.swp
+
+# Python cache
+__pycache__
+*.pyc
+.venv
+venv
+
+# Docker itself
+docker-compose.yml
+.dockerignore
+
+# Env
+.env
+.env.*
