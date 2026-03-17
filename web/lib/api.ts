@@ -409,6 +409,15 @@ export async function deletePath(path: string) {
 export function getTerminalWsUrl(): string {
   const token = getToken()
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:"
-  return `${proto}//${window.location.host}/api/terminal/ws?token=${token}`
+  
+  // Next.js rewrites don't natively support WebSocket proxying well, 
+  // so we connect directly to the backend on port 8000 in prod/Docker
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    const wsBaseUrl = process.env.NEXT_PUBLIC_API_URL.replace(/^http/, "ws")
+    return `${wsBaseUrl}/api/terminal/ws?token=${token}`
+  }
+  
+  const host = window.location.hostname
+  return `${proto}//${host}:8000/api/terminal/ws?token=${token}`
 }
 
