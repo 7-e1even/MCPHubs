@@ -51,7 +51,7 @@ async def terminal_ws(
         await websocket.close(code=4001, reason="Missing token")
         return
     try:
-        verify_token(token)
+        await verify_token(token)
     except Exception:
         await websocket.close(code=4001, reason="Invalid token")
         return
@@ -68,8 +68,8 @@ async def terminal_ws(
 
     loop = asyncio.get_event_loop()
 
-    # 创建 PTY
-    child_pid, fd = pty.openpty()
+    # 创建 PTY（fork 出子进程运行 shell）
+    child_pid, fd = pty.fork()
 
     if child_pid == 0:
         # 子进程

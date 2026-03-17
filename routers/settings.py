@@ -18,7 +18,7 @@ from services.auth import get_current_user
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 # 允许通过 UI 修改的 key 白名单
-ALLOWED_KEYS = {"api_key", "llm_base_url", "llm_api_key", "llm_model", "modelscope_token"}
+ALLOWED_KEYS = {"api_key", "admin_token", "llm_base_url", "llm_api_key", "llm_model", "modelscope_token"}
 
 
 class UpdateSettingRequest(BaseModel):

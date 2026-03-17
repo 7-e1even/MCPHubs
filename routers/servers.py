@@ -56,7 +56,7 @@ class RegisterRequest(BaseModel):
 
 
 @router.get("")
-async def list_servers():
+async def list_servers(_user: str = Depends(get_current_user)):
     """列出所有 MCP Server。"""
     return _r().list_all()
 
@@ -64,6 +64,7 @@ async def list_servers():
 @router.get("/export")
 async def export_servers(
     format: str = Query("generic", pattern="^(claude|vscode|generic)$"),
+    _user: str = Depends(get_current_user),
 ):
     """导出所有 MCP Server 为指定 JSON 格式。"""
     servers = _r().list_all()
@@ -119,7 +120,7 @@ async def export_servers(
 
 
 @router.get("/{name}")
-async def get_server(name: str):
+async def get_server(name: str, _user: str = Depends(get_current_user)):
     """获取指定 Server 信息。"""
     try:
         return _r().get(name)
@@ -214,7 +215,7 @@ async def update_disabled_tools(
 
 
 @router.get("/{name}/tools")
-async def get_server_tools(name: str):
+async def get_server_tools(name: str, _user: str = Depends(get_current_user)):
     """获取 MCP Server 的完整工具列表（含禁用状态）。"""
     if name not in _r():
         raise HTTPException(404, f"Server '{name}' 不存在")
