@@ -114,15 +114,22 @@ class ProgressiveProxy:
         self._tools_cache.pop(name, None)
 
     async def load_all(self) -> None:
-        """从 YAML 导入 + DB 加载。"""
+        """从 YAML 导入 + DB 加载，并行注册所有 server。"""
+        import asyncio
+
         for cfg in self.config.mcp_servers:
             await self.registry.import_from_yaml(cfg)
 
         await self.registry.load_from_db()
 
+        # 并行注册所有 server
+        tasks = []
         for info in self.registry.list_all():
             cfg = MCPServerConfig(**{k: info[k] for k in MCPServerConfig.model_fields if k in info})
-            await self.add_server(cfg)
+            tasks.append(self.add_server(cfg))
+
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
         logger.info(f"加载完成: {len(self.registry)} 个 server (progressive)")
 

@@ -297,179 +297,200 @@ export default function FilesPage() {
 
   if (loading && items.length === 0) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <div className="flex flex-col h-[calc(100vh-2rem)] p-6 gap-6">
         <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-[400px]" />
+        <Skeleton className="h-[400px] rounded-xl" />
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col h-[calc(100vh-2rem)] p-6 max-w-[1400px] mx-auto w-full gap-6">
+      {/* Header Area */}
+      <div className="flex items-end justify-between shrink-0">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">File Manager</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            管理服务器文件，上传自研 MCP 工具
+          <div className="flex items-center gap-3 mb-1">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <FolderOpen className="size-5 text-primary" />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight">File Manager</h1>
+          </div>
+          <p className="text-sm text-muted-foreground ml-[44px]">
+            Manage server files & deploy custom MCP tools
           </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {error && (
+            <Badge variant="destructive" className="flex items-center gap-1.5 px-3 py-1 font-normal">
+              <span>{error}</span>
+              <button onClick={() => setError("")} className="hover:opacity-80">
+                <X className="size-3" />
+              </button>
+            </Badge>
+          )}
         </div>
       </div>
 
-      <Separator />
-
-      {error && (
-        <div className="text-sm text-destructive bg-destructive/10 px-4 py-3 rounded-md flex items-center justify-between">
-          <span>{error}</span>
-          <Button variant="ghost" size="icon" className="size-6" onClick={() => setError("")}>
-            <X className="size-3" />
-          </Button>
-        </div>
-      )}
-
-      <Card className="shadow-sm">
+      <Card className="flex-1 flex flex-col shadow-sm border-border/50 overflow-hidden bg-background/50 backdrop-blur-sm">
         {/* Toolbar */}
-        <CardHeader className="pb-3 border-b">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1 text-sm min-w-0 flex-1 overflow-hidden">
-              <button
-                onClick={() => navigateTo("")}
-                className="hover:text-primary transition-colors shrink-0"
-              >
-                <Home className="size-4" />
-              </button>
-              {breadcrumbs.map((part, i) => {
-                const path = breadcrumbs.slice(0, i + 1).join("/")
-                return (
-                  <span key={i} className="flex items-center gap-1 min-w-0">
-                    <ChevronRight className="size-3 text-muted-foreground shrink-0" />
-                    <button
-                      onClick={() => navigateTo(path)}
-                      className="hover:text-primary transition-colors truncate max-w-[150px]"
-                    >
-                      {part}
-                    </button>
-                  </span>
-                )
-              })}
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="flex items-center gap-1.5 mr-2">
-                <Checkbox
-                  id="auto-extract"
-                  checked={autoExtract}
-                  onCheckedChange={(v) => setAutoExtract(!!v)}
-                />
-                <label htmlFor="auto-extract" className="text-xs text-muted-foreground cursor-pointer select-none">
-                  ZIP 自动解压
-                </label>
-              </div>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={(e) => handleUpload(e.target.files)}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-              >
-                {uploading ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Upload className="size-4 mr-1.5" />}
-                Upload
-              </Button>
-
-              <Button variant="outline" size="sm" onClick={() => setMkdirOpen(true)}>
-                <FolderPlus className="size-4 mr-1.5" />
-                New Folder
-              </Button>
-
-              <Button variant="outline" size="sm" onClick={() => setNewFileOpen(true)}>
-                <FilePlus className="size-4 mr-1.5" />
-                New File
-              </Button>
-
-              {currentPath && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const parts = currentPath.split("/").filter(Boolean)
-                    parts.pop()
-                    navigateTo(parts.join("/"))
-                  }}
-                >
-                  <ArrowLeft className="size-4 mr-1.5" />
-                  Back
-                </Button>
-              )}
-
-              <Button variant="ghost" size="icon" className="size-8" onClick={() => loadFiles(currentPath)}>
-                <RefreshCw className="size-4" />
-              </Button>
-            </div>
+        <div className="flex items-center justify-between p-4 border-b bg-muted/20 shrink-0 gap-4 flex-wrap">
+          {/* Path Bar */}
+          <div className="flex items-center px-3 py-1.5 bg-background border rounded-md text-sm min-w-[200px] flex-1 max-w-2xl shadow-sm">
+            <button
+              onClick={() => navigateTo("")}
+              className="hover:text-primary transition-colors text-muted-foreground"
+            >
+              <Home className="size-4" />
+            </button>
+            {breadcrumbs.length > 0 && <ChevronRight className="size-4 mx-1 text-muted-foreground/50 shrink-0" />}
+            {breadcrumbs.map((part, i) => {
+              const path = breadcrumbs.slice(0, i + 1).join("/")
+              const isLast = i === breadcrumbs.length - 1
+              return (
+                <span key={i} className="flex items-center min-w-0">
+                  <button
+                    onClick={() => navigateTo(path)}
+                    className={`hover:text-primary transition-colors truncate max-w-[150px] ${
+                      isLast ? "text-foreground font-medium" : "text-muted-foreground"
+                    }`}
+                  >
+                    {part}
+                  </button>
+                  {!isLast && <ChevronRight className="size-4 mx-1 text-muted-foreground/50 shrink-0" />}
+                </span>
+              )
+            })}
           </div>
-        </CardHeader>
 
-        {/* File List */}
-        <CardContent
-          className={`p-0 min-h-[300px] transition-colors ${dragOver ? "bg-primary/5 ring-2 ring-primary/20 ring-inset" : ""}`}
+          {/* Actions */}
+          <div className="flex items-center gap-2 shrink-0">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mr-2 px-2 py-1.5 rounded-md hover:bg-muted transition-colors">
+              <Checkbox
+                checked={autoExtract}
+                onCheckedChange={(v) => setAutoExtract(!!v)}
+                className="size-3.5 rounded-[3px]"
+              />
+              <span className="select-none font-medium">Auto-Extract ZIPs</span>
+            </label>
+
+            <div className="h-4 w-px bg-border mx-1" />
+
+            <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-foreground" onClick={() => loadFiles(currentPath)}>
+              <RefreshCw className="size-4" />
+            </Button>
+
+            {currentPath && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 text-muted-foreground hover:text-foreground"
+                onClick={() => {
+                  const parts = currentPath.split("/").filter(Boolean)
+                  parts.pop()
+                  navigateTo(parts.join("/"))
+                }}
+              >
+                <ArrowLeft className="size-4" />
+              </Button>
+            )}
+
+            <div className="h-4 w-px bg-border mx-1" />
+
+            <Button variant="outline" size="sm" onClick={() => setNewFileOpen(true)} className="h-8 shadow-sm">
+              <FilePlus className="size-4 mr-1.5 text-muted-foreground" />
+              New File
+            </Button>
+
+            <Button variant="outline" size="sm" onClick={() => setMkdirOpen(true)} className="h-8 shadow-sm">
+              <FolderPlus className="size-4 mr-1.5 text-muted-foreground" />
+              New Folder
+            </Button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => handleUpload(e.target.files)}
+            />
+            <Button
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="h-8 shadow-sm"
+            >
+              {uploading ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Upload className="size-4 mr-1.5" />}
+              Upload Files
+            </Button>
+          </div>
+        </div>
+
+        {/* File List Area */}
+        <div
+          className={`flex-1 overflow-auto relative transition-colors ${
+            dragOver ? "bg-primary/5 inset-ring-2 inset-ring-primary/20" : ""
+          }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
+              <Loader2 className="size-8 animate-spin text-primary/50" />
             </div>
-          ) : items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-              <FolderOpen className="size-12 opacity-30 mb-3" />
-              <p className="font-medium">空目录</p>
-              <p className="text-xs mt-1">拖拽文件到此处上传，或点击 Upload 按钮</p>
+          ) : null}
+
+          {items.length === 0 && !loading ? (
+            <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-8">
+              <div className="size-16 rounded-full bg-muted/50 flex items-center justify-center mb-4 ring-1 ring-border shadow-sm">
+                <FolderOpen className="size-8 text-muted-foreground/50" />
+              </div>
+              <h3 className="text-lg font-medium text-foreground mb-1">Folder is empty</h3>
+              <p className="text-sm text-center max-w-sm">
+                Drag and drop files here to upload, or use the buttons above to create new files and folders.
+              </p>
             </div>
           ) : (
             <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[50%]">Name</TableHead>
-                  <TableHead className="w-[15%]">Size</TableHead>
-                  <TableHead className="w-[20%]">Modified</TableHead>
-                  <TableHead className="w-[15%] text-right">Actions</TableHead>
+              <TableHeader className="sticky top-0 bg-background/95 backdrop-blur-sm shadow-[0_1px_0_hsl(var(--border))] z-10">
+                <TableRow className="hover:bg-transparent border-none">
+                  <TableHead className="w-[50%] font-medium">Name</TableHead>
+                  <TableHead className="w-[15%] font-medium">Size</TableHead>
+                  <TableHead className="w-[20%] font-medium">Modified</TableHead>
+                  <TableHead className="w-[15%] text-right font-medium">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {items.map((item) => (
                   <TableRow
                     key={item.name}
-                    className={`group ${item.is_dir ? "cursor-pointer" : ""}`}
+                    className={`group border-border/50 transition-colors ${
+                      item.is_dir ? "cursor-pointer hover:bg-muted/40" : "hover:bg-muted/20"
+                    }`}
                     onDoubleClick={() => item.is_dir && navigateTo(itemPath(item.name))}
                   >
                     <TableCell>
-                      <div className="flex items-center gap-2.5">
-                        {getFileIcon(item.name, item.is_dir)}
+                      <div className="flex items-center gap-3">
+                        <div className="shrink-0 drop-shadow-sm">
+                          {getFileIcon(item.name, item.is_dir)}
+                        </div>
                         {item.is_dir ? (
                           <button
-                            className="font-medium hover:text-primary transition-colors truncate"
+                            className="font-medium hover:text-primary transition-colors truncate text-left"
                             onClick={() => navigateTo(itemPath(item.name))}
                           >
                             {item.name}
                           </button>
                         ) : (
-                          <span className="truncate">{item.name}</span>
+                          <span className="truncate font-medium text-muted-foreground">{item.name}</span>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
+                    <TableCell className="text-muted-foreground text-xs tabular-nums">
                       {formatSize(item.size)}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
+                    <TableCell className="text-muted-foreground text-xs tabular-nums">
                       {formatTime(item.modified)}
                     </TableCell>
                     <TableCell className="text-right">
@@ -478,34 +499,35 @@ export default function FilesPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-7"
+                            className="size-8 hover:bg-primary/10 hover:text-primary"
                             title="Edit"
-                            onClick={() => openEditor(item.name)}
+                            onClick={(e) => { e.stopPropagation(); openEditor(item.name); }}
                           >
-                            <Pencil className="size-3.5" />
+                            <Pencil className="size-4" />
                           </Button>
                         )}
                         {!item.is_dir && (
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-7"
+                            className="size-8 hover:bg-primary/10 hover:text-primary"
                             title="Download"
-                            onClick={() => handleDownload(item.name)}
+                            onClick={(e) => { e.stopPropagation(); handleDownload(item.name); }}
                           >
-                            <Download className="size-3.5" />
+                            <Download className="size-4" />
                           </Button>
                         )}
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="size-7 text-destructive hover:text-destructive"
+                          className="size-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
                           title="Delete"
-                          onClick={() =>
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setDeleteTarget({ name: item.name, path: itemPath(item.name) })
-                          }
+                          }}
                         >
-                          <Trash2 className="size-3.5" />
+                          <Trash2 className="size-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -514,26 +536,38 @@ export default function FilesPage() {
               </TableBody>
             </Table>
           )}
-        </CardContent>
+
+          {/* Drop Overlay */}
+          {dragOver && (
+            <div className="absolute inset-0 z-20 bg-background/80 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+              <div className="flex flex-col items-center bg-background border-2 border-primary border-dashed rounded-xl p-10 shadow-2xl">
+                <Upload className="size-12 text-primary animate-bounce mb-4" />
+                <h3 className="text-xl font-bold">Drop files to upload</h3>
+                <p className="text-muted-foreground mt-2">Files will be saved to current folder</p>
+              </div>
+            </div>
+          )}
+        </div>
       </Card>
 
       {/* Mkdir Dialog */}
       <Dialog open={mkdirOpen} onOpenChange={setMkdirOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>New Folder</DialogTitle>
-            <DialogDescription>输入新目录名称</DialogDescription>
+            <DialogTitle>Create New Folder</DialogTitle>
+            <DialogDescription>Enter a name for the new directory.</DialogDescription>
           </DialogHeader>
           <Input
             value={newDirName}
             onChange={(e) => setNewDirName(e.target.value)}
-            placeholder="folder-name"
+            placeholder="e.g. models"
+            className="mt-2"
+            autoFocus
             onKeyDown={(e) => e.key === "Enter" && handleMkdir()}
           />
-          <DialogFooter>
-            <Button onClick={handleMkdir} disabled={!newDirName.trim()}>
-              Create
-            </Button>
+          <DialogFooter className="mt-4">
+            <Button variant="ghost" onClick={() => setMkdirOpen(false)}>Cancel</Button>
+            <Button onClick={handleMkdir} disabled={!newDirName.trim()}>Create Folder</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -542,73 +576,85 @@ export default function FilesPage() {
       <Dialog open={newFileOpen} onOpenChange={setNewFileOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>New File</DialogTitle>
-            <DialogDescription>输入新文件名称（含扩展名）</DialogDescription>
+            <DialogTitle>Create New File</DialogTitle>
+            <DialogDescription>Enter file name with extension.</DialogDescription>
           </DialogHeader>
           <Input
             value={newFileName}
             onChange={(e) => setNewFileName(e.target.value)}
-            placeholder="example.py"
+            placeholder="e.g. main.py"
+            className="mt-2"
+            autoFocus
             onKeyDown={(e) => e.key === "Enter" && handleNewFile()}
           />
-          <DialogFooter>
-            <Button onClick={handleNewFile} disabled={!newFileName.trim()}>
-              Create & Edit
-            </Button>
+          <DialogFooter className="mt-4">
+            <Button variant="ghost" onClick={() => setNewFileOpen(false)}>Cancel</Button>
+            <Button onClick={handleNewFile} disabled={!newFileName.trim()}>Create & Edit</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirm Dialog */}
-      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>确认删除</DialogTitle>
+            <DialogTitle>Delete Item</DialogTitle>
             <DialogDescription>
-              确定要删除 <span className="font-semibold text-foreground">{deleteTarget?.name}</span> 吗？此操作不可恢复。
+              Are you sure you want to delete <span className="font-semibold text-foreground">"{deleteTarget?.name}"</span>? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>取消</Button>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Deleting..." : "Delete"}
+              {deleting ? (
+                <>
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Editor Dialog */}
-      <Dialog open={!!editFile} onOpenChange={() => setEditFile(null)}>
-        <DialogContent className="max-w-[90vw] sm:max-w-[90vw] w-[90vw] h-[90vh] flex flex-col p-0 gap-0" showCloseButton={false} style={{ backgroundColor: "var(--background)" }}>
-          <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
-            <div className="flex items-center gap-2">
-              <FileText className="size-4 text-blue-500" />
-              <span className="font-medium text-sm">{editFile?.name}</span>
-              <Badge variant="secondary" className="text-[10px]">
+      <Dialog open={!!editFile} onOpenChange={(open) => !open && setEditFile(null)}>
+        <DialogContent className="max-w-[95vw] sm:max-w-[95vw] w-[95vw] h-[90vh] flex flex-col p-0 gap-0 overflow-hidden rounded-xl border-border/40 shadow-2xl" showCloseButton={false} style={{ backgroundColor: "#1e1e1e" }}>
+          <div className="flex items-center justify-between px-4 py-3 shrink-0 bg-[#252526] text-[#cccccc] border-b border-[#3c3c3c]">
+            <div className="flex items-center gap-3">
+              <FileText className="size-4 text-blue-400" />
+              <span className="font-medium text-sm tracking-wide">{editFile?.name}</span>
+              <Badge variant="outline" className="text-[10px] uppercase font-mono bg-black/20 border-[#3c3c3c] text-muted-foreground">
                 {editFile?.name ? getMonacoLanguage(editFile.name) : ""}
               </Badge>
             </div>
-            <div className="flex items-center gap-2">
-              <Button size="sm" onClick={handleSave} disabled={saving}>
-                {saving ? <Loader2 className="size-4 mr-1.5 animate-spin" /> : <Save className="size-4 mr-1.5" />}
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground mr-3 hidden sm:inline-block">Ctrl+S to save</span>
+              <Button size="sm" onClick={handleSave} disabled={saving} className="bg-primary/20 hover:bg-primary/30 text-primary-foreground h-8 border-none" variant="outline">
+                {saving ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Save className="size-3.5 mr-1.5" />}
                 Save
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setEditFile(null)}>
+              <div className="w-px h-4 bg-[#3c3c3c] mx-2" />
+              <Button size="sm" variant="ghost" onClick={() => setEditFile(null)} className="size-8 p-0 hover:bg-white/10 text-muted-foreground hover:text-white rounded-md">
                 <X className="size-4" />
               </Button>
             </div>
           </div>
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 w-full relative">
             {editLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              <div className="absolute inset-0 flex items-center justify-center bg-[#1e1e1e]">
+                <Loader2 className="size-8 animate-spin text-[#cccccc]/30" />
               </div>
             ) : (
-              <MonacoEditorWrapper
-                value={editContent}
-                onChange={setEditContent}
-                language={editFile?.name ? getMonacoLanguage(editFile.name) : "plaintext"}
-              />
+              <div className="absolute inset-0" onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); handleSave(); } }}>
+                <MonacoEditorWrapper
+                  value={editContent}
+                  onChange={setEditContent}
+                  language={editFile?.name ? getMonacoLanguage(editFile.name) : "plaintext"}
+                />
+              </div>
             )}
           </div>
         </DialogContent>
@@ -653,11 +699,15 @@ function MonacoEditorWrapper({
       options={{
         minimap: { enabled: false },
         fontSize: 14,
+        fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, monospace",
         lineNumbers: "on",
         wordWrap: "on",
         scrollBeyondLastLine: false,
         automaticLayout: true,
-        padding: { top: 12 },
+        padding: { top: 16 },
+        renderLineHighlight: "all",
+        matchBrackets: "near",
+        bracketPairColorization: { enabled: true },
       }}
     />
   )

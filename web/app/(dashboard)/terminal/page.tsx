@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Terminal as TerminalIcon, Loader2 } from "lucide-react"
+import { TerminalSquare, Loader2, RotateCcw, Maximize2, Minimize2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { isLoggedIn, getTerminalWsUrl } from "@/lib/api"
 
 export default function TerminalPage() {
@@ -12,7 +13,67 @@ export default function TerminalPage() {
   const [errorMsg, setErrorMsg] = useState("")
   const termRef = useRef<any>(null)
   const wsRef = useRef<WebSocket | null>(null)
+  const fitAddonRef = useRef<any>(null)
   const initRef = useRef(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  const connect = () => {
+    // 清理旧连接
+    if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
+      wsRef.current.close()
+    }
+    if (termRef.current) {
+      termRef.current.clear()
+    }
+
+    setStatus("connecting")
+    setErrorMsg("")
+
+    const terminal = termRef.current
+    if (!terminal) return
+
+    const url = getTerminalWsUrl()
+    const ws = new WebSocket(url)
+    wsRef.current = ws
+
+    ws.onopen = () => {
+      setStatus("connected")
+      terminal.focus()
+      // 发送初始 resize
+      if (fitAddonRef.current) {
+        fitAddonRef.current.fit()
+        const dims = fitAddonRef.current.proposeDimensions()
+        if (dims) {
+          ws.send(JSON.stringify({ type: "resize", cols: dims.cols, rows: dims.rows }))
+        }
+      }
+    }
+
+    ws.onmessage = (event) => {
+      terminal.write(event.data)
+    }
+
+    ws.onerror = () => {
+      setStatus("error")
+      setErrorMsg("连接失败")
+    }
+
+    ws.onclose = (event) => {
+      if (event.code === 4001) {
+        setStatus("error")
+        setErrorMsg("认证失败，请重新登录")
+      } else if (status !== "error") {
+        setStatus("disconnected")
+      }
+      terminal.write("\r\n\x1b[90m[Session ended]\x1b[0m\r\n")
+    }
+
+    terminal.onData((data: string) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(data)
+      }
+    })
+  }
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -23,94 +84,79 @@ export default function TerminalPage() {
     if (initRef.current) return
     initRef.current = true
 
-    let terminal: any = null
-    let fitAddon: any = null
-    let ws: WebSocket | null = null
-
     async function init() {
-      // Dynamic import xterm modules
       const { Terminal } = await import("@xterm/xterm")
       const { FitAddon } = await import("@xterm/addon-fit")
 
-      // Load xterm CSS via link tag if not already loaded
+      // Load xterm CSS
       if (!document.querySelector('link[href*="xterm"]')) {
         const link = document.createElement("link")
         link.rel = "stylesheet"
         link.href = "https://cdn.jsdelivr.net/npm/@xterm/xterm/css/xterm.min.css"
         document.head.appendChild(link)
+        // Wait for CSS to load
+        await new Promise(resolve => { link.onload = resolve; setTimeout(resolve, 500) })
       }
 
       if (!containerRef.current) return
 
-      terminal = new Terminal({
+      const terminal = new Terminal({
         cursorBlink: true,
+        cursorStyle: "bar",
         fontSize: 14,
-        fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, 'Courier New', monospace",
+        fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, monospace",
+        lineHeight: 1.2,
+        letterSpacing: 0,
         theme: {
-          background: "#0a0a0a",
-          foreground: "#d4d4d4",
-          cursor: "#d4d4d4",
+          background: "#0c0c0c",
+          foreground: "#cccccc",
+          cursor: "#ffffff",
+          cursorAccent: "#0c0c0c",
           selectionBackground: "#264f78",
-          black: "#1e1e1e",
-          red: "#f44747",
-          green: "#6a9955",
-          yellow: "#dcdcaa",
-          blue: "#569cd6",
-          magenta: "#c586c0",
-          cyan: "#4ec9b0",
-          white: "#d4d4d4",
+          selectionForeground: "#ffffff",
+          black: "#0c0c0c",
+          red: "#c94f4f",
+          green: "#13a10e",
+          yellow: "#c19c00",
+          blue: "#3b78ff",
+          magenta: "#881798",
+          cyan: "#3a96dd",
+          white: "#cccccc",
+          brightBlack: "#767676",
+          brightRed: "#e74856",
+          brightGreen: "#16c60c",
+          brightYellow: "#f9f1a5",
+          brightBlue: "#3b78ff",
+          brightMagenta: "#b4009e",
+          brightCyan: "#61d6d6",
+          brightWhite: "#f2f2f2",
         },
         allowProposedApi: true,
+        scrollback: 5000,
       })
 
-      fitAddon = new FitAddon()
+      const fitAddon = new FitAddon()
       terminal.loadAddon(fitAddon)
       terminal.open(containerRef.current)
       fitAddon.fit()
 
       termRef.current = terminal
+      fitAddonRef.current = fitAddon
 
-      // Connect WebSocket
-      const url = getTerminalWsUrl()
-      ws = new WebSocket(url)
-      wsRef.current = ws
-
-      ws.onopen = () => {
-        setStatus("connected")
-        terminal.focus()
-      }
-
-      ws.onmessage = (event) => {
-        terminal.write(event.data)
-      }
-
-      ws.onerror = () => {
-        setStatus("error")
-        setErrorMsg("WebSocket 连接失败")
-      }
-
-      ws.onclose = (event) => {
-        if (event.code === 4001) {
-          setStatus("error")
-          setErrorMsg("认证失败，请重新登录")
-        } else {
-          setStatus("disconnected")
-        }
-        terminal.write("\r\n\x1b[31m[连接已断开]\x1b[0m\r\n")
-      }
-
-      // Forward terminal input to WebSocket
-      terminal.onData((data: string) => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(data)
-        }
-      })
-
-      // Handle resize
+      // Resize handling
       const resizeObserver = new ResizeObserver(() => {
-        fitAddon.fit()
+        try {
+          fitAddon.fit()
+          const dims = fitAddon.proposeDimensions()
+          if (dims && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: "resize", cols: dims.cols, rows: dims.rows }))
+          }
+        } catch {}
       })
       resizeObserver.observe(containerRef.current)
+
+      // Start connection
+      connect()
 
       return () => {
         resizeObserver.disconnect()
@@ -120,55 +166,73 @@ export default function TerminalPage() {
     init()
 
     return () => {
-      if (ws && ws.readyState !== WebSocket.CLOSED) {
-        ws.close()
+      if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
+        wsRef.current.close()
       }
-      if (terminal) {
-        terminal.dispose()
+      if (termRef.current) {
+        termRef.current.dispose()
       }
     }
   }, [router])
 
+  const handleReconnect = () => connect()
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen()
+      setIsFullscreen(true)
+    } else {
+      document.exitFullscreen()
+      setIsFullscreen(false)
+    }
+  }
+
+  const statusConfig = {
+    connecting: { color: "bg-amber-500", text: "Connecting...", pulse: true },
+    connected: { color: "bg-emerald-500", text: "Connected", pulse: false },
+    disconnected: { color: "bg-zinc-500", text: "Disconnected", pulse: false },
+    error: { color: "bg-red-500", text: errorMsg || "Error", pulse: false },
+  }
+  const sc = statusConfig[status]
+
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] p-6 gap-4">
-      {/* Header */}
-      <div className="flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary/10 p-2 rounded-lg">
-            <TerminalIcon className="size-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">Terminal</h1>
-            <p className="text-xs text-muted-foreground">
-              MCPHubs 服务器 Shell 终端
-            </p>
+    <div className="flex flex-col h-[calc(100vh-2rem)] p-4 gap-3">
+      {/* Title Bar */}
+      <div className="flex items-center justify-between px-1 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <TerminalSquare className="size-5 text-primary" />
+          <h1 className="text-lg font-semibold tracking-tight">Terminal</h1>
+          <div className="flex items-center gap-1.5 ml-2">
+            <span className={`size-2 rounded-full ${sc.color} ${sc.pulse ? "animate-pulse" : ""}`} />
+            <span className="text-xs text-muted-foreground">{sc.text}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
-            status === "connected" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" :
-            status === "connecting" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" :
-            status === "error" ? "bg-red-500/10 text-red-600 dark:text-red-400" :
-            "bg-muted text-muted-foreground"
-          }`}>
-            {status === "connecting" && <Loader2 className="size-3 animate-spin" />}
-            {status === "connected" && <span className="relative flex size-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex size-2 rounded-full bg-emerald-500" /></span>}
-            {status === "connected" ? "Connected" :
-             status === "connecting" ? "Connecting..." :
-             status === "error" ? (errorMsg || "Error") :
-             "Disconnected"}
-          </span>
+
+        <div className="flex items-center gap-1">
+          {(status === "disconnected" || status === "error") && (
+            <Button variant="outline" size="sm" onClick={handleReconnect} className="h-7 text-xs">
+              <RotateCcw className="size-3 mr-1" />
+              Reconnect
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" className="size-7" onClick={toggleFullscreen}>
+            {isFullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+          </Button>
         </div>
       </div>
 
-      {/* Terminal Container */}
-      <div className="flex-1 rounded-xl border border-border/50 overflow-hidden bg-[#0a0a0a] shadow-lg relative">
-        <div ref={containerRef} className="w-full h-full" />
+      {/* Terminal */}
+      <div className="flex-1 rounded-lg border border-border/40 overflow-hidden bg-[#0c0c0c] relative">
+        <div
+          ref={containerRef}
+          className="w-full h-full"
+          style={{ padding: "8px" }}
+        />
         {status === "connecting" && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a]">
-            <div className="flex flex-col items-center gap-3">
-              <Loader2 className="size-8 animate-spin text-primary" />
-              <p className="text-sm text-zinc-500">正在连接终端...</p>
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0c0c0c]">
+            <div className="flex items-center gap-2 text-zinc-500">
+              <Loader2 className="size-4 animate-spin" />
+              <span className="text-sm">Connecting to shell...</span>
             </div>
           </div>
         )}

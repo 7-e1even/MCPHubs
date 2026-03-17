@@ -43,7 +43,7 @@ RUN mkdir -p /app/installed
 
 # Python 依赖（独立层，利用缓存）
 COPY requirements.txt .
-RUN pip install --no-cache-dir --break-system-packages \
+RUN pip install --no-cache-dir \
     -i https://pypi.tuna.tsinghua.edu.cn/simple \
     -r requirements.txt
 

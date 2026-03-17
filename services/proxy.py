@@ -65,7 +65,9 @@ class MCPProxy:
             del self._providers[name]
 
     async def load_all(self) -> None:
-        """从 YAML 导入 + 从 DB 加载，然后挂载所有 server。"""
+        """从 YAML 导入 + 从 DB 加载，并行挂载所有 server。"""
+        import asyncio
+
         # 1. YAML 中的 server 导入到 DB
         for cfg in self.config.mcp_servers:
             await self.registry.import_from_yaml(cfg)
@@ -73,10 +75,14 @@ class MCPProxy:
         # 2. 从 DB 加载全部
         await self.registry.load_from_db()
 
-        # 3. 挂载所有
+        # 3. 并行挂载所有
+        tasks = []
         for info in self.registry.list_all():
             cfg = MCPServerConfig(**{k: info[k] for k in MCPServerConfig.model_fields if k in info})
-            await self.add_server(cfg)
+            tasks.append(self.add_server(cfg))
+
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
         logger.info(f"加载完成: {len(self.registry)} 个 server")
 
