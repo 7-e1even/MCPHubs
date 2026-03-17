@@ -37,6 +37,15 @@ def create_access_token(username: str) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
+def verify_token(token: str) -> str:
+    """直接验证 JWT Token，返回用户名。用于 WebSocket 等非 Depends 场景。"""
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    username: str | None = payload.get("sub")
+    if username is None:
+        raise ValueError("Invalid token")
+    return username
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> str:

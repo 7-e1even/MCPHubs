@@ -67,6 +67,10 @@ class ServerConfig(BaseSettings):
         default="admin123",
         description="默认管理员密码",
     )
+    files_root: str = Field(
+        default="/app/installed",
+        description="文件管理器根目录",
+    )
 
 
 class GatewayConfig:

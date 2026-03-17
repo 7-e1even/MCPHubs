@@ -11,6 +11,8 @@ import {
   Sun,
   ScrollText,
   Bug,
+  FolderOpen,
+  TerminalSquare,
 } from "lucide-react"
 
 import {
@@ -41,6 +43,16 @@ const navMain = [
     title: "Debug",
     url: "/debug",
     icon: Bug,
+  },
+  {
+    title: "File Manager",
+    url: "/files",
+    icon: FolderOpen,
+  },
+  {
+    title: "Terminal",
+    url: "/terminal",
+    icon: TerminalSquare,
   },
   {
     title: "Logs",

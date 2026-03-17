@@ -327,3 +327,88 @@ export async function updateDisabledTools(name: string, disabledTools: string[])
     body: JSON.stringify({ disabled_tools: disabledTools }),
   })
 }
+
+// ─── File Manager API ─────────────────────────────────────
+export interface FileItem {
+  name: string
+  is_dir: boolean
+  size: number | null
+  modified: string
+}
+
+export interface ListFilesResponse {
+  path: string
+  root: string
+  items: FileItem[]
+}
+
+export async function listFiles(path: string = ""): Promise<ListFilesResponse> {
+  return fetchAPI<ListFilesResponse>(`/api/files?path=${encodeURIComponent(path)}`)
+}
+
+export async function uploadFile(
+  file: File,
+  path: string = "",
+  autoExtract: boolean = false
+): Promise<{ status: string; name?: string; extracted?: boolean }> {
+  const token = getToken()
+  const formData = new FormData()
+  formData.append("file", file)
+
+  const params = new URLSearchParams()
+  if (path) params.set("path", path)
+  if (autoExtract) params.set("auto_extract", "true")
+
+  const res = await fetch(`/api/files/upload?${params.toString()}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  })
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.detail || `HTTP ${res.status}`)
+  }
+  return res.json()
+}
+
+export function downloadFileUrl(path: string): string {
+  return `/api/files/download?path=${encodeURIComponent(path)}`
+}
+
+export async function readFileContent(path: string): Promise<{
+  path: string
+  name: string
+  content: string
+  size: number
+}> {
+  return fetchAPI(`/api/files/read?path=${encodeURIComponent(path)}`)
+}
+
+export async function writeFileContent(path: string, content: string) {
+  return fetchAPI("/api/files/write", {
+    method: "PUT",
+    body: JSON.stringify({ path, content }),
+  })
+}
+
+export async function createDirectory(path: string) {
+  return fetchAPI("/api/files/mkdir", {
+    method: "POST",
+    body: JSON.stringify({ path }),
+  })
+}
+
+export async function deletePath(path: string) {
+  return fetchAPI(`/api/files?path=${encodeURIComponent(path)}`, {
+    method: "DELETE",
+  })
+}
+
+// ─── Terminal Helper ──────────────────────────────────────
+export function getTerminalWsUrl(): string {
+  const token = getToken()
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:"
+  return `${proto}//${window.location.host}/api/terminal/ws?token=${token}`
+}
+

@@ -18,16 +18,24 @@ ENV NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 RUN npm run build
 
 # ── Stage 2: Final Image ─────────────────────────────────────
-FROM python:3.11-slim
+FROM ubuntu:22.04
 
+ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
-# Install Node.js (for npx stdio servers) and system deps
+# Install Python, Node.js, and system deps
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc libpq-dev curl && \
+    apt-get install -y --no-install-recommends \
+      python3 python3-pip python3-venv \
+      gcc libpq-dev curl git unzip \
+      ca-certificates bash vim nano net-tools iputils-ping && \
+    ln -sf /usr/bin/python3 /usr/bin/python && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
     rm -rf /var/lib/apt/lists/*
+
+# Create installed directory for File Manager
+RUN mkdir -p /app/installed
 
 # Install Python deps
 COPY requirements.txt .
