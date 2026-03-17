@@ -2,7 +2,7 @@
 渐进式披露代理
 
 不直接暴露所有 tool，而是提供 3 个 meta tool：
-  1. list_servers   → 查看有哪些 MCP Server
+  1. list_servers   → 查看有哪些 MCP Server（支持模糊搜索）
   2. list_tools     → 查看某个 Server 有哪些 tool
   3. call_tool      → 统一调用入口
 
@@ -138,12 +138,18 @@ class ProgressiveProxy:
         factories = self._client_factories
         tools_cache = self._tools_cache
 
+        _LIST_LIMIT = 20
+
         @self._mcp.tool
-        async def list_servers() -> str:
+        async def list_servers(query: str = "") -> str:
             """
-            列出所有可用的 MCP Server。
-            返回每个 server 的名称、传输类型和状态。
+            列出可用的 MCP Server。
+            不传 query 返回前 20 个 server（含 total 总数）；传 query 按名称/描述模糊匹配。
+            如果 total 大于返回数量，请使用 query 缩小范围。
             使用 list_tools 可以查看具体 server 提供的工具。
+
+            参数:
+              query: 可选，搜索关键词，按名称和描述模糊匹配
             """
             servers = registry.list_all()
             result = [
@@ -155,7 +161,15 @@ class ProgressiveProxy:
                 }
                 for s in servers
             ]
-            return json.dumps(result, ensure_ascii=False)
+            if query:
+                q = query.lower()
+                result = [
+                    s for s in result
+                    if q in s["name"].lower() or q in s["description"].lower()
+                ]
+            total = len(result)
+            truncated = result[:_LIST_LIMIT]
+            return json.dumps({"total": total, "servers": truncated}, ensure_ascii=False)
 
         @self._mcp.tool
         async def list_tools(mcp_name: str) -> str:
@@ -208,32 +222,6 @@ class ProgressiveProxy:
             except Exception as e:
                 return json.dumps({"error": str(e)})
 
-        @self._mcp.tool
-        async def refresh_tools(mcp_name: str) -> str:
-            """
-            刷新指定 MCP Server 的工具缓存。
-
-            参数:
-              mcp_name: MCP 名称
-            """
-            if mcp_name not in factories:
-                return json.dumps({"error": f"MCP '{mcp_name}' 不存在"})
-
-            factory = factories[mcp_name]
-            try:
-                async with factory() as client:
-                    tools = await client.list_tools()
-                    tools_cache[mcp_name] = [
-                        {
-                            "name": t.name,
-                            "description": t.description or "",
-                            "parameters": t.inputSchema if hasattr(t, "inputSchema") else {},
-                        }
-                        for t in tools
-                    ]
-                    return json.dumps({"status": "ok", "tools_count": len(tools_cache[mcp_name])})
-            except Exception as e:
-                return json.dumps({"error": str(e)})
 
         @self._mcp.tool
         async def call_tool(mcp_name: str, tool_name: str, arguments: str = "{}") -> str:
