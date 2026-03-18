@@ -8,7 +8,7 @@ FROM node:20-alpine AS frontend-builder
 WORKDIR /app/web
 
 COPY web/package.json web/package-lock.json ./
-RUN npm config set registry https://registry.npmmirror.com && npm ci
+RUN npm ci
 
 COPY web/ .
 
@@ -25,10 +25,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 WORKDIR /app
 
-# 换源 + 安装系统依赖（合并为单层减小镜像）
-RUN sed -i 's|http://archive.ubuntu.com|http://mirrors.aliyun.com|g' /etc/apt/sources.list && \
-    sed -i 's|http://security.ubuntu.com|http://mirrors.aliyun.com|g' /etc/apt/sources.list && \
-    apt-get update && \
+# 安装系统依赖（合并为单层减小镜像）
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       python3 python3-pip python3-venv \
       gcc libpq-dev curl git unzip \
@@ -45,7 +43,6 @@ RUN mkdir -p /app/installed
 # Python 依赖（独立层，带重试）
 COPY requirements.txt .
 RUN pip install --no-cache-dir --retries 3 --timeout 60 \
-    -i https://pypi.tuna.tsinghua.edu.cn/simple \
     -r requirements.txt
 
 # 后端源码
