@@ -50,6 +50,7 @@ class RegisterRequest(BaseModel):
     url: str | None = None
     headers: dict[str, str] = Field(default_factory=dict)
     description: str | None = None
+    exposure: str | None = None
 
 
 # ─── 基础 CRUD ───────────────────────────────────────────
@@ -212,6 +213,26 @@ async def update_disabled_tools(
 
     # 同步更新 progressive proxy 的 tools_cache（不需要，list_tools 读取时实时过滤）
     return {"status": "ok", "disabled_tools": req.disabled_tools}
+
+
+# ─── 暴露模式管理 ──────────────────────────────────────────
+
+
+class ExposureRequest(BaseModel):
+    exposure: str = Field(..., pattern="^(progressive|direct)$")
+
+
+@router.put("/{name}/exposure")
+async def update_exposure(
+    name: str, req: ExposureRequest, _user: str = Depends(get_current_user)
+):
+    """更新 MCP Server 的暴露模式（progressive / direct）。"""
+    if name not in _r():
+        raise HTTPException(404, f"Server '{name}' 不存在")
+
+    await _r().set_exposure(name, req.exposure)
+    await _p().set_server_exposure(name, req.exposure)
+    return {"status": "ok", "exposure": req.exposure}
 
 
 @router.get("/{name}/tools")

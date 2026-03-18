@@ -39,6 +39,7 @@ class MCPServerModel(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     disabled_tools: Mapped[list] = mapped_column(JSON, default=list)
+    exposure: Mapped[str] = mapped_column(String(16), default="progressive")
 
     # 时间
     created_at: Mapped[datetime] = mapped_column(
@@ -65,6 +66,7 @@ class MCPServerModel(Base):
             "enabled": self.enabled,
             "description": self.description,
             "disabled_tools": self.disabled_tools or [],
+            "exposure": self.exposure or "progressive",
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

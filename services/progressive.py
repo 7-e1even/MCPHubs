@@ -65,6 +65,7 @@ class ProgressiveProxy:
         self._mcp = FastMCP(name=config.server.name)
         self._client_factories: dict[str, Any] = {}
         self._tools_cache: dict[str, list[dict[str, Any]]] = {}
+        self._direct_tools: dict[str, list[str]] = {}  # server_name -> [tool_names]
 
         self._register_meta_tools()
 
@@ -102,6 +103,11 @@ class ProgressiveProxy:
                         if desc:
                             await self.registry.set_description(cfg.name, desc)
                             logger.info(f"✓ {cfg.name} 描述已生成")
+
+                    # 如果是 direct 模式，直接注册工具
+                    exposure = getattr(cfg, "exposure", None) or info.get("exposure", "progressive")
+                    if exposure == "direct":
+                        await self._register_direct_tools(cfg.name)
             except Exception as e:
                 logger.debug(f"{cfg.name} tools 缓存/描述生成跳过: {e}")
                 self._tools_cache[cfg.name] = []
@@ -112,6 +118,7 @@ class ProgressiveProxy:
     def remove_server(self, name: str) -> None:
         self._client_factories.pop(name, None)
         self._tools_cache.pop(name, None)
+        self._unregister_direct_tools(name)
 
     async def load_all(self) -> None:
         """从 YAML 导入 + DB 加载，并行注册所有 server。"""
@@ -132,6 +139,103 @@ class ProgressiveProxy:
             await asyncio.gather(*tasks, return_exceptions=True)
 
         logger.info(f"加载完成: {len(self.registry)} 个 server (progressive)")
+
+    # ------------------------------------------------------------------
+    # Direct Tools Management
+    # ------------------------------------------------------------------
+
+    async def _register_direct_tools(self, server_name: str) -> None:
+        """将指定 server 的工具直接注册到 FastMCP 上。"""
+        cached = self._tools_cache.get(server_name, [])
+        if not cached:
+            return
+
+        # 过滤禁用的工具
+        try:
+            info = self.registry.get(server_name)
+            disabled = set(info.get("disabled_tools") or [])
+        except KeyError:
+            disabled = set()
+
+        factory = self._client_factories.get(server_name)
+        if not factory:
+            return
+
+        registered_names = []
+        for tool_info in cached:
+            tool_name = tool_info["name"]
+            if tool_name in disabled:
+                continue
+
+            # 创建一个闭包来捕获 server_name 和 tool_name
+            _sn = server_name
+            _tn = tool_name
+            _desc = tool_info.get("description", "")
+            _schema = tool_info.get("parameters", {})
+
+            async def _direct_call(arguments: str = "{}", _server=_sn, _tool=_tn) -> str:
+                _factory = self._client_factories.get(_server)
+                if not _factory:
+                    return json.dumps({"error": f"Server '{_server}' 不可用"})
+                try:
+                    args = json.loads(arguments) if isinstance(arguments, str) else arguments
+                except json.JSONDecodeError as e:
+                    return json.dumps({"error": f"arguments JSON 解析失败: {e}"})
+
+                start = time.time()
+                try:
+                    async with _factory() as client:
+                        result = await client.call_tool(_tool, args)
+                        content = getattr(result, "content", result) or []
+                        if not hasattr(content, "__iter__"):
+                            content = [content]
+                        texts = []
+                        for item in content:
+                            if hasattr(item, "text"):
+                                texts.append(item.text)
+                            else:
+                                texts.append(str(item))
+                        output = "\n".join(texts)
+                        duration_ms = int((time.time() - start) * 1000)
+                        await _log_audit(_server, _tool, arguments if isinstance(arguments, str) else json.dumps(arguments), output, "success", None, duration_ms)
+                        return output
+                except Exception as e:
+                    duration_ms = int((time.time() - start) * 1000)
+                    error_msg = str(e)
+                    await _log_audit(_server, _tool, arguments if isinstance(arguments, str) else json.dumps(arguments), "", "error", error_msg, duration_ms)
+                    return json.dumps({"error": error_msg})
+
+            # 为闭包函数设置名称和文档
+            _direct_call.__name__ = tool_name
+            _direct_call.__doc__ = _desc or f"Tool from {server_name}"
+
+            self._mcp.tool(_direct_call)
+            registered_names.append(tool_name)
+
+        self._direct_tools[server_name] = registered_names
+        logger.info(f"⚡ {server_name} 直接暴露了 {len(registered_names)} 个工具")
+
+    def _unregister_direct_tools(self, server_name: str) -> None:
+        """移除指定 server 的直接暴露工具。"""
+        tool_names = self._direct_tools.pop(server_name, [])
+        if not tool_names:
+            return
+        # 使用 FastMCP 官方 API 移除工具
+        for name in tool_names:
+            try:
+                self._mcp.remove_tool(name)
+            except Exception:
+                pass  # 工具可能已不存在
+        logger.info(f"⚡ {server_name} 移除了 {len(tool_names)} 个直接暴露工具")
+
+    async def set_server_exposure(self, server_name: str, exposure: str) -> None:
+        """切换指定 server 的暴露模式（热更新）。"""
+        # 先移除旧的直接工具
+        self._unregister_direct_tools(server_name)
+        # 如果新模式是 direct，重新注册
+        if exposure == "direct":
+            await self._register_direct_tools(server_name)
+        logger.info(f"{server_name} 暴露模式已切换为 {exposure}")
 
     def get_asgi_app(self, path: str = "/mcp"):
         return self._mcp.http_app(path=path)
@@ -167,6 +271,7 @@ class ProgressiveProxy:
                     "description": s.get("description") or "",
                 }
                 for s in servers
+                if s.get("exposure", "progressive") != "direct"  # direct 的已直接暴露，不再列出
             ]
             if query:
                 q = query.lower()

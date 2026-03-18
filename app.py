@@ -90,6 +90,16 @@ def create_app() -> FastAPI:
                     "ALTER TABLE mcp_servers ADD COLUMN disabled_tools JSONB DEFAULT '[]'::jsonb"
                 ))
                 logger.info("✓ 自动迁移: 已添加 disabled_tools 列")
+            # Auto-migrate: ensure exposure column exists
+            result = await conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = 'mcp_servers' AND column_name = 'exposure'"
+            ))
+            if not result.fetchone():
+                await conn.execute(text(
+                    "ALTER TABLE mcp_servers ADD COLUMN exposure VARCHAR(16) DEFAULT 'progressive'"
+                ))
+                logger.info("✓ 自动迁移: 已添加 exposure 列")
         logger.info("数据库表已就绪")
 
         # 自动创建默认管理员

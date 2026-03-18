@@ -28,6 +28,9 @@ class MCPServerConfig(BaseModel):
     # 描述（LLM 自动生成或手动填写）
     description: str | None = None
 
+    # 暴露模式：progressive（走 meta-tool）或 direct（直接暴露工具）
+    exposure: str = "progressive"
+
 
 class ServerConfig(BaseSettings):
     """Gateway 核心配置，全部来自环境变量。"""

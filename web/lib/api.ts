@@ -106,6 +106,7 @@ export interface MCPServer {
   status?: string
   error_message?: string | null
   disabled_tools?: string[]
+  exposure?: string
 }
 
 export async function fetchServers(): Promise<MCPServer[]> {
@@ -325,6 +326,13 @@ export async function updateDisabledTools(name: string, disabledTools: string[])
   return fetchAPI(`/api/servers/${encodeURIComponent(name)}/disabled-tools`, {
     method: "PUT",
     body: JSON.stringify({ disabled_tools: disabledTools }),
+  })
+}
+
+export async function updateServerExposure(name: string, exposure: "progressive" | "direct") {
+  return fetchAPI(`/api/servers/${encodeURIComponent(name)}/exposure`, {
+    method: "PUT",
+    body: JSON.stringify({ exposure }),
   })
 }
 

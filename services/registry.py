@@ -50,6 +50,7 @@ class Registry:
                 url=config.url,
                 headers=config.headers,
                 description=config.description,
+                exposure=config.exposure,
                 status="registered",
             )
             session.add(row)
@@ -93,6 +94,7 @@ class Registry:
             row.headers = config.headers
             if config.description is not None:
                 row.description = config.description
+            row.exposure = config.exposure
             await session.commit()
             await session.refresh(row)
 
@@ -133,6 +135,17 @@ class Registry:
             row = await session.get(MCPServerModel, name)
             if row:
                 row.disabled_tools = disabled_tools
+                await session.commit()
+
+    async def set_exposure(self, name: str, exposure: str) -> None:
+        """更新 server 的暴露模式。"""
+        if name in self._cache:
+            self._cache[name]["exposure"] = exposure
+
+        async with self._sf() as session:
+            row = await session.get(MCPServerModel, name)
+            if row:
+                row.exposure = exposure
                 await session.commit()
 
     async def import_from_yaml(self, config: MCPServerConfig) -> None:

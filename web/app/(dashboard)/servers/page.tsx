@@ -59,11 +59,16 @@ import {
   testServer,
   fetchServerTools,
   updateDisabledTools,
+  updateServerExposure,
   isLoggedIn,
   type MCPServer,
   type ImportResult,
   type ServerToolInfo,
 } from "@/lib/api"
+import { Switch } from "@/components/ui/switch"
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 export default function ServersPage() {
   const router = useRouter()
@@ -452,6 +457,22 @@ export default function ServersPage() {
     }
   }
 
+  // ─── Exposure Toggle ───
+  const [exposureUpdating, setExposureUpdating] = useState<string | null>(null)
+
+  async function handleToggleExposure(name: string, currentExposure: string) {
+    setExposureUpdating(name)
+    const newExposure = currentExposure === "direct" ? "progressive" : "direct"
+    try {
+      await updateServerExposure(name, newExposure as "progressive" | "direct")
+      setServers(prev => prev.map(s => s.name === name ? { ...s, exposure: newExposure } : s))
+    } catch {
+      // ignore
+    } finally {
+      setExposureUpdating(null)
+    }
+  }
+
   // Helper to get server description
   const serverDesc = (s: MCPServer) =>
     s.transport === "stdio"
@@ -830,6 +851,24 @@ export default function ServersPage() {
                       <CardTitle className="text-sm font-semibold truncate">{s.name}</CardTitle>
                       <div className="flex items-center gap-1.5 mt-1">
                         <Badge variant="outline" className="text-[11px]">{s.transport}</Badge>
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center gap-1">
+                                <Switch
+                                  checked={(s.exposure || "progressive") === "direct"}
+                                  onCheckedChange={() => handleToggleExposure(s.name, s.exposure || "progressive")}
+                                  disabled={exposureUpdating === s.name}
+                                  className="h-4 w-7 data-[state=checked]:bg-amber-500 [&>span]:size-3 [&>span]:data-[state=checked]:translate-x-3"
+                                />
+                                <Zap className={`size-3 ${(s.exposure || "progressive") === "direct" ? "text-amber-500" : "text-muted-foreground/40"}`} />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">
+                              <p className="text-xs">{(s.exposure || "progressive") === "direct" ? "Direct: 工具直接暴露给 AI" : "Progressive: 通过 meta-tool 发现"}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                     </div>
                   </div>
@@ -885,6 +924,7 @@ export default function ServersPage() {
                 <TableHead className="w-[100px]">Transport</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead className="w-[100px]">Env</TableHead>
+                <TableHead className="w-[90px]">Exposure</TableHead>
                 <TableHead className="w-[80px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -913,6 +953,19 @@ export default function ServersPage() {
                     {s.env && Object.keys(s.env).length > 0 && (
                       <Badge variant="secondary" className="text-[10px]">{Object.keys(s.env).length} vars</Badge>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5">
+                      <Switch
+                        checked={(s.exposure || "progressive") === "direct"}
+                        onCheckedChange={() => handleToggleExposure(s.name, s.exposure || "progressive")}
+                        disabled={exposureUpdating === s.name}
+                        className="h-4 w-7 data-[state=checked]:bg-amber-500 [&>span]:size-3 [&>span]:data-[state=checked]:translate-x-3"
+                      />
+                      <span className={`text-[11px] ${(s.exposure || "progressive") === "direct" ? "text-amber-500 font-medium" : "text-muted-foreground"}`}>
+                        {(s.exposure || "progressive") === "direct" ? "Direct" : "Progressive"}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
