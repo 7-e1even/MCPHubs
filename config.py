@@ -7,6 +7,8 @@ McpHub 配置
 
 from __future__ import annotations
 
+import secrets
+
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -55,8 +57,8 @@ class ServerConfig(BaseSettings):
         description="暴露模式: full / progressive",
     )
     jwt_secret: str = Field(
-        default="change-me-to-a-random-string",
-        description="JWT 签名密钥",
+        default_factory=lambda: secrets.token_urlsafe(32),
+        description="JWT 签名密钥（未配置时每次启动自动生成）",
     )
     jwt_expire_minutes: int = Field(
         default=1440,

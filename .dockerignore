@@ -2,7 +2,7 @@
 .git
 .gitignore
 
-# Frontend (rebuilt in image)
+# Frontend build artifacts (rebuilt in Docker multi-stage)
 web/node_modules
 web/.next
 
@@ -18,9 +18,16 @@ __pycache__
 venv
 
 # Docker itself
+Dockerfile
 docker-compose.yml
 .dockerignore
 
-# Env
+# Env files
 .env
-.env.*
+.env.example
+
+# Docs & assets (not needed in image)
+*.md
+LICENSE
+assets/
+logs/

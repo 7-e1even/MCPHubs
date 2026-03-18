@@ -27,7 +27,6 @@ services:
       MCPHUBS_HOST: "0.0.0.0"
       MCPHUBS_PORT: "8000"
       MCPHUBS_DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres:5432/mcphubs"
-      MCPHUBS_JWT_SECRET: "${MCPHUBS_JWT_SECRET:-change-me-to-a-random-string}"
       MCPHUBS_ADMIN_USERNAME: "${MCPHUBS_ADMIN_USERNAME:-admin}"
       MCPHUBS_ADMIN_PASSWORD: "${MCPHUBS_ADMIN_PASSWORD:-admin123}"
       MCPHUBS_EXPOSURE_MODE: "${MCPHUBS_EXPOSURE_MODE:-progressive}"

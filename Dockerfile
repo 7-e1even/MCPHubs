@@ -2,8 +2,8 @@
 # MCPHubs - Unified Dockerfile (Frontend + Backend)
 # ============================================================
 
-# ── Stage 1: Build Frontend ──────────────────────────────────
-FROM node:20-alpine AS frontend-builder
+# ── Stage 1: Build Frontend (Debian-based, glibc 兼容 Ubuntu) ─
+FROM node:24-slim AS frontend-builder
 
 WORKDIR /app/web
 
@@ -17,7 +17,7 @@ ENV NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 RUN npm run build
 
 # ── Stage 2: Final Image ─────────────────────────────────────
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -25,7 +25,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 WORKDIR /app
 
-# 安装系统依赖（合并为单层减小镜像）
+# 安装系统依赖（不再需要 NodeSource，node 从构建阶段复制）
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       python3 python3-pip python3-venv \
@@ -34,21 +34,22 @@ RUN apt-get update && \
     ln -sf /usr/bin/python3 /usr/bin/python && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*
 
-# 从编译阶段复制 Node（彻底避免 NodeSource 超时问题）
+# 从构建阶段复制 Node（node:24-slim 基于 Debian/glibc，兼容 Ubuntu）
 COPY --from=frontend-builder /usr/local/bin/node /usr/local/bin/node
 
 # File Manager 工作目录
 RUN mkdir -p /app/installed
 
-# Python 依赖（独立层，带重试）
+# Python 依赖（--break-system-packages 适配 Ubuntu 24.04 PEP 668）
 COPY requirements.txt .
-RUN pip install --no-cache-dir --retries 3 --timeout 60 \
+RUN pip install --no-cache-dir --break-system-packages \
+    --retries 3 --timeout 60 \
     -r requirements.txt
 
-# 后端源码
+# 后端源码（web/ 已在 .dockerignore 中排除）
 COPY . .
 
-# 前端构建产物
+# 前端构建产物（只复制 standalone 输出，不带 node_modules）
 COPY --from=frontend-builder /app/web/.next/standalone/  /app/web-standalone/
 COPY --from=frontend-builder /app/web/.next/static       /app/web-standalone/.next/static
 COPY --from=frontend-builder /app/web/public              /app/web-standalone/public
