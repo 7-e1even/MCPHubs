@@ -3,7 +3,7 @@
 # ============================================================
 
 # ── Stage 1: Build Frontend ──────────────────────────────────
-FROM node:20-alpine AS frontend-builder
+FROM registry.cn-hangzhou.aliyuncs.com/library/node:20-alpine AS frontend-builder
 
 WORKDIR /app/web
 
@@ -17,7 +17,7 @@ ENV NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 RUN npm run build
 
 # ── Stage 2: Final Image ─────────────────────────────────────
-FROM ubuntu:22.04
+FROM registry.cn-hangzhou.aliyuncs.com/library/ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
