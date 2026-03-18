@@ -1,16 +1,32 @@
-# MCPHubs
+<p align="center">
+  <img src="./assets/dashboard.png" alt="MCPHubs Dashboard" width="720">
+</p>
 
-**The MCP gateway that doesn't overwhelm your AI.**
+<h1 align="center">MCPHubs</h1>
 
-[中文文档](./README_zh.md)
+<p align="center">
+  <strong>The MCP gateway that doesn't overwhelm your AI.</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/7-e1even/MCPHubs/blob/main/LICENSE"><img src="https://img.shields.io/github/license/7-e1even/MCPHubs?style=flat-square&color=blue" alt="License"></a>
+  <a href="https://github.com/7-e1even/MCPHubs/releases"><img src="https://img.shields.io/github/v/release/7-e1even/MCPHubs?style=flat-square&color=green" alt="Release"></a>
+  <a href="https://github.com/7-e1even/MCPHubs/stargazers"><img src="https://img.shields.io/github/stars/7-e1even/MCPHubs?style=flat-square&color=yellow" alt="Stars"></a>
+  <a href="https://github.com/7-e1even/MCPHubs"><img src="https://img.shields.io/badge/python-%3E%3D3.11-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python"></a>
+  <a href="https://github.com/7-e1even/MCPHubs"><img src="https://img.shields.io/badge/Next.js-black?style=flat-square&logo=next.js&logoColor=white" alt="Next.js"></a>
+</p>
+
+<p align="center">
+  <a href="./README_zh.md">中文文档</a> · <a href="#-quick-start">Quick Start</a> · <a href="#-connect-your-ai-client">Connect AI</a> · <a href="#%EF%B8%8F-configuration">Configuration</a>
+</p>
 
 ---
 
-## Why MCPHubs?
+## The Problem
 
-MCP is powerful — but naive aggregation is not. When you wire up 10+ MCP Servers, your LLM is force-fed hundreds of tool definitions on every single request — burning tokens, inflating costs, and degrading decision quality.
+MCP is powerful — but naive aggregation is not. When you wire up 10+ MCP Servers, your LLM is force-fed hundreds of tool definitions on **every single request** — burning tokens, inflating costs, and degrading decision quality.
 
-**MCPHubs fixes this with Progressive Disclosure.**
+## The Solution: Progressive Disclosure
 
 Instead of dumping every tool into the system prompt, MCPHubs exposes a lean surface of just **3 meta-tools**. Your AI discovers servers, inspects their capabilities, and calls the right tool — all on demand, with zero upfront overhead.
 
@@ -38,9 +54,7 @@ Instead of dumping every tool into the system prompt, MCPHubs exposes a lean sur
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-<img src="./assets/dashboard.png" alt="MCPHubs Dashboard" width="800">
-
-## How Progressive Disclosure Works
+## How It Works
 
 MCPHubs collapses all your MCP Servers into **3 meta-tools**:
 
@@ -68,9 +82,11 @@ The AI explores your tool ecosystem **on demand** — it calls `list_servers` to
 | 🔐 **API Key Auth** | Bearer Token protection on the `/mcp` endpoint |
 | 🌟 **ModelScope Sync** | Import from [ModelScope MCP Marketplace](https://modelscope.cn/home) |
 
-### ModelScope Integration
-
-<img src="./assets/ModelScope.png" alt="ModelScope Integration" width="800">
+<details>
+<summary><b>🌟 ModelScope Integration</b></summary>
+<br>
+<img src="./assets/ModelScope.png" alt="ModelScope Integration" width="720">
+</details>
 
 ## 🏗 Architecture
 
@@ -96,7 +112,8 @@ Open `http://localhost:3000` — login with `admin` / `admin123`.
 
 ### Local Development
 
-**Backend:**
+<details>
+<summary><b>Backend</b></summary>
 
 ```bash
 pip install -r requirements.txt
@@ -104,7 +121,10 @@ cp .env.example .env
 python main.py serve
 ```
 
-**Frontend (dev):**
+</details>
+
+<details>
+<summary><b>Frontend (dev)</b></summary>
 
 ```bash
 cd web
@@ -112,11 +132,16 @@ npm install
 npm run dev
 ```
 
-**Frontend (production):**
+</details>
+
+<details>
+<summary><b>Frontend (production)</b></summary>
 
 ```bash
 cd web && npm install && npm run build && npm run start
 ```
+
+</details>
 
 ## 🔌 Connect Your AI Client
 
@@ -179,6 +204,9 @@ That's it. Your AI now has access to **every tool on every server** through prog
 
 ## 📡 Management API
 
+<details>
+<summary><b>View API examples</b></summary>
+
 ```bash
 # List all servers
 curl http://localhost:8000/api/servers
@@ -195,6 +223,12 @@ curl http://localhost:8000/api/servers/export?format=claude
 # Health check
 curl http://localhost:8000/api/health
 ```
+
+</details>
+
+## 🤝 Contributing
+
+Contributions are welcome! Feel free to open issues and pull requests.
 
 ## 📄 License
 
