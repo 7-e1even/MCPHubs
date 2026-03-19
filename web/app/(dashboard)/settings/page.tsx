@@ -61,8 +61,10 @@ export default function GeneralSettingsPage() {
             <Shield className="size-4 text-primary" />
             API Key Authentication
           </CardTitle>
-          <CardDescription className="text-xs">
-            Secure your MCP endpoints. Leave blank to disable authentication.
+          <CardDescription className="text-xs leading-relaxed">
+            Secure your <code className="bg-muted px-1 py-0.5 rounded font-mono text-[10px]">/mcp</code> endpoint for AI clients (Cursor, Claude Code, etc.). Leave blank to disable.
+            <br />
+            <span className="text-muted-foreground/80">Note: The CLI and REST API use the <strong>Admin Token</strong> configured in the Security tab.</span>
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
@@ -110,11 +112,11 @@ export default function GeneralSettingsPage() {
                   </div>
                 </div>
                 
-                <div className="bg-muted/50 rounded-md p-3 border text-xs text-muted-foreground">
-                  <p className="font-medium text-foreground mb-1">Client Connection Usage:</p>
-                  <p>Clients connecting to your Hub must provide this key in their HTTP headers:</p>
+                <div className="bg-muted/50 rounded-md p-3 border text-xs text-muted-foreground mt-2">
+                  <p className="font-medium text-foreground mb-1">AI Client Connection Usage:</p>
+                  <p>AI clients connecting to your Hub's <code className="bg-background px-1 py-0.5 rounded border">/mcp</code> endpoint must provide this key in their HTTP headers:</p>
                   <code className="block mt-2 bg-background p-2 rounded border font-mono text-foreground">
-                    Authorization: Bearer {"<your-key>"}
+                    Authorization: Bearer {"<your-api-key>"}
                   </code>
                 </div>
               </div>

@@ -31,5 +31,9 @@ env/
 .DS_Store
 Thumbs.db
 
+# Node
+node_modules/
+cli/dist/
+
 # Docker
 data/

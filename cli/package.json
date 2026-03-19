@@ -1,0 +1,39 @@
+{
+  "name": "mcphubs",
+  "version": "0.1.0",
+  "description": "CLI for MCPHubs — call MCP tools from your terminal",
+  "type": "module",
+  "bin": {
+    "mcphubs": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "SKILL.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "prepublishOnly": "tsc"
+  },
+  "keywords": [
+    "mcp",
+    "mcphubs",
+    "cli",
+    "ai",
+    "agent",
+    "tools"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/7-e1even/MCPHubs"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^22.0.0"
+  }
+}

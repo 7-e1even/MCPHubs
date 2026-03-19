@@ -98,6 +98,23 @@ AI Client ──▶ Streamable HTTP ──▶ MCPHubs Gateway ──┬─ stdio
                                   Web Dashboard
 ```
 
+## 💻 CLI
+
+Call MCP tools directly from your terminal — no AI client needed.
+
+```bash
+npm i -g mcphubs
+mcphubs config --url http://localhost:8000 --token "YOUR_ADMIN_TOKEN"
+```
+
+```bash
+mcphubs list                                        # List all servers
+mcphubs tools github                                # List tools for a server
+mcphubs call github.search_repositories query=test  # Call a tool
+```
+
+> The CLI uses the **Admin Token** (Settings → Security), not the MCP API Key. See [CLI docs](./cli/SKILL.md) for details.
+
 ## 🚀 Quick Start
 
 ### Docker Compose (Recommended)

@@ -89,6 +89,7 @@ export default function DashboardPage() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [origin, setOrigin] = useState("")
   const [apiKey, setApiKey] = useState("")
+  const [adminToken, setAdminToken] = useState("")
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -110,6 +111,7 @@ export default function DashboardPage() {
       try {
         const settings = await getSettings()
         setApiKey(settings.api_key ?? "")
+        setAdminToken(settings.admin_token ?? "")
       } catch { /* ignore */ }
       setLoading(false)
     }
@@ -247,6 +249,7 @@ export default function DashboardPage() {
               <TabsTrigger value="cursor" className="px-3 text-[13px] whitespace-nowrap">Cursor / Windsurf</TabsTrigger>
               <TabsTrigger value="claude" className="px-3 text-[13px] whitespace-nowrap">Claude Code</TabsTrigger>
               <TabsTrigger value="vscode" className="px-3 text-[13px] whitespace-nowrap">VS Code</TabsTrigger>
+              <TabsTrigger value="cli" className="px-3 text-[13px] whitespace-nowrap">Terminal (CLI)</TabsTrigger>
             </TabsList>
             <div className="mt-5">
               <TabsContent value="cursor" className="space-y-3 m-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -307,6 +310,35 @@ export default function DashboardPage() {
                     onClick={() => copyToClipboard(vscodeConfig, "vscode")}
                   >
                     {copiedKey === "vscode" ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
+                  </Button>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="cli" className="space-y-3 m-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                  安装 CLI 后，运行 <Badge variant="secondary" className="font-mono font-normal rounded-md shadow-sm">mcphubs config</Badge> 配置连接：
+                </p>
+                <div className="relative group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-primary/0 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur"></div>
+                  <pre className="relative p-4 rounded-xl bg-zinc-950/90 backdrop-blur border border-zinc-800/50 shadow-inner text-zinc-300 text-[13px] font-mono overflow-auto h-[320px] leading-relaxed">
+{`# 1. 安装
+npm i -g mcphubs
+
+# 2. 配置（自动保存到 ~/.mcphubsrc）
+mcphubs config --url ${origin ? origin.replace(/:\d+$/, ':8000') : 'http://localhost:8000'} --token "${adminToken || 'your_admin_token'}"
+
+# 3. 使用
+mcphubs list                     # 列出所有 Server
+mcphubs tools github             # 列出某 Server 的工具
+mcphubs call github.search ...   # 调用工具`}
+                  </pre>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="absolute top-2.5 right-2.5 h-8 w-8 text-zinc-500 hover:bg-zinc-800/80 hover:text-zinc-100 transition-colors rounded-lg"
+                    onClick={() => copyToClipboard(`cd cli && npm install && npm run build && npm link`, "cli")}
+                  >
+                    {copiedKey === "cli" ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
                   </Button>
                 </div>
               </TabsContent>

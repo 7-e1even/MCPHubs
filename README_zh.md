@@ -102,6 +102,23 @@ AI 客户端 ──▶ Streamable HTTP ──▶ MCPHubs 网关 ──┬─ std
                                  Web 管理控制台
 ```
 
+## 💻 CLI
+
+在终端直接调用 MCP 工具，无需启动 AI 客户端。
+
+```bash
+npm i -g mcphubs
+mcphubs config --url http://localhost:8000 --token "你的_ADMIN_TOKEN"
+```
+
+```bash
+mcphubs list                                        # 列出所有 Server
+mcphubs tools github                                # 查看某个 Server 的工具
+mcphubs call github.search_repositories query=test  # 调用工具
+```
+
+> CLI 使用 **Admin Token**（设置 → 安全 → Admin Token），而非 MCP API Key。详见 [CLI 文档](./cli/SKILL.md)。
+
 ## 🚀 快速开始
 
 ### Docker Compose（推荐）
