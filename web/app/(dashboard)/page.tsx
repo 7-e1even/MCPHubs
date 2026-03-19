@@ -320,14 +320,20 @@ export default function DashboardPage() {
                 </p>
                 <div className="relative group">
                   <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-primary/0 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur"></div>
-                  <pre className="relative p-4 rounded-xl bg-zinc-950/90 backdrop-blur border border-zinc-800/50 shadow-inner text-zinc-300 text-[13px] font-mono overflow-auto h-[320px] leading-relaxed">
+                  <pre className="relative p-4 rounded-xl bg-zinc-950/90 backdrop-blur border border-zinc-800/50 shadow-inner text-zinc-300 text-[13px] font-mono overflow-auto h-[420px] leading-relaxed">
 {`# 1. 安装
 npm i -g mcphubs
 
 # 2. 配置（自动保存到 ~/.mcphubsrc）
 mcphubs config --url ${origin ? origin.replace(/:\d+$/, ':8000') : 'http://localhost:8000'} --token "${adminToken || 'your_admin_token'}"
 
-# 3. 使用
+# 3. 安装与管理 Server
+mcphubs install github -e GITHUB_TOKEN=xxx -- npx -y @modelcontextprotocol/server-github
+mcphubs install --transport sse remote-server http://example.com/sse
+mcphubs install --from claude_desktop_config.json
+mcphubs remove github
+
+# 4. 运行与调用
 mcphubs list                     # 列出所有 Server
 mcphubs tools github             # 列出某 Server 的工具
 mcphubs call github.search ...   # 调用工具`}

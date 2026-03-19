@@ -112,6 +112,13 @@ mcphubs config --url http://localhost:8000 --token "你的_ADMIN_TOKEN"
 ```
 
 ```bash
+# 安装与管理 Server
+mcphubs install github -e GITHUB_TOKEN=xxx -- npx -y @modelcontextprotocol/server-github
+mcphubs install --transport sse remote-server http://example.com/sse
+mcphubs install --from claude_desktop_config.json
+mcphubs remove github
+
+# 调用与运行
 mcphubs list                                        # 列出所有 Server
 mcphubs tools github                                # 查看某个 Server 的工具
 mcphubs call github.search_repositories query=test  # 调用工具

@@ -108,6 +108,13 @@ mcphubs config --url http://localhost:8000 --token "YOUR_ADMIN_TOKEN"
 ```
 
 ```bash
+# Install and manage servers
+mcphubs install github -e GITHUB_TOKEN=xxx -- npx -y @modelcontextprotocol/server-github
+mcphubs install --transport sse remote-server http://example.com/sse
+mcphubs install --from claude_desktop_config.json
+mcphubs remove github
+
+# Call and run
 mcphubs list                                        # List all servers
 mcphubs tools github                                # List tools for a server
 mcphubs call github.search_repositories query=test  # Call a tool
