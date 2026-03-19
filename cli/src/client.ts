@@ -74,4 +74,24 @@ export class MCPHubsClient {
       { tool_name: toolName, arguments: args }
     );
   }
+
+  /** POST /api/servers */
+  async registerServer(data: object): Promise<any> {
+    return this.request("POST", "/api/servers", data);
+  }
+
+  /** POST /api/servers/{name}/test */
+  async testServer(name: string): Promise<any> {
+    return this.request("POST", `/api/servers/${encodeURIComponent(name)}/test`);
+  }
+
+  /** POST /api/servers/import */
+  async importServers(data: object): Promise<any> {
+    return this.request("POST", "/api/servers/import", data);
+  }
+
+  /** DELETE /api/servers/{name} */
+  async removeServer(name: string): Promise<any> {
+    return this.request("DELETE", `/api/servers/${encodeURIComponent(name)}`);
+  }
 }

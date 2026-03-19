@@ -34,6 +34,30 @@ program
   .description("CLI for MCPHubs — call MCP tools from your terminal")
   .version("0.1.0");
 
+program.addHelpText("after", `
+Examples:
+
+  # Setup
+  mcphubs config --url http://localhost:8000 --token "your_admin_token"
+
+  # Install a MCP Server (stdio)
+  mcphubs install github -e GITHUB_TOKEN=xxx -- npx -y @modelcontextprotocol/server-github
+
+  # Install a remote MCP Server
+  mcphubs install --transport sse remote https://example.com/mcp
+
+  # Import from JSON config file
+  mcphubs install --from claude_desktop_config.json
+
+  # List servers / tools / call
+  mcphubs list
+  mcphubs tools github
+  mcphubs call github.search_repositories query=mcphubs per_page=3
+
+  # Remove a server
+  mcphubs remove github
+`);
+
 // ─── config ────────────────────────────────────────
 
 program
@@ -222,6 +246,160 @@ program
     }
 
     console.error(`\n  ✓ ${server}.${tool} (${result.elapsed_ms || elapsed}ms)`);
+  });
+
+// ─── install ───────────────────────────────────────
+
+program
+  .command("install")
+  .description(
+    "Register a new MCP Server (like claude mcp add)"
+  )
+  .argument("[name]", "Server name")
+  .argument("[url]", "Server URL (for sse/http transport)")
+  .option(
+    "-t, --transport <type>",
+    "Transport: stdio / sse / streamable-http",
+    "stdio"
+  )
+  .option(
+    "-e, --env <KEY=VAL>",
+    "Environment variable (repeatable)",
+    (v: string, prev: string[]) => [...prev, v],
+    [] as string[]
+  )
+  .option(
+    "--header <Key: Val>",
+    "HTTP header (repeatable)",
+    (v: string, prev: string[]) => [...prev, v],
+    [] as string[]
+  )
+  .option("-d, --desc <text>", "Server description")
+  .option("--no-test", "Skip connectivity test after install")
+  .option("--from <file>", "Import from JSON config file (Claude/VSCode/generic)")
+  .allowUnknownOption(false)
+  .action(async (name: string | undefined, url: string | undefined, opts: any, cmd: any) => {
+    const client = getClient();
+
+    // ── --from: import from JSON file ──
+    if (opts.from) {
+      const { readFileSync } = await import("fs");
+      let data: any;
+      try {
+        data = JSON.parse(readFileSync(opts.from, "utf-8"));
+      } catch (e: any) {
+        console.error(`✗ Cannot read file: ${e.message}`);
+        process.exit(1);
+      }
+      const result = await client.importServers(data);
+      for (const s of result.imported || []) {
+        console.log(`  ✓ ${s.name}`);
+      }
+      for (const s of result.skipped || []) {
+        console.log(`  ⊘ ${s.name} (${s.reason})`);
+      }
+      for (const s of result.errors || []) {
+        console.error(`  ✗ ${s.name}: ${s.error}`);
+      }
+      console.log(
+        `\n  ${(result.imported || []).length} imported, ${(result.skipped || []).length} skipped, ${(result.errors || []).length} errors`
+      );
+      return;
+    }
+
+    // ── Normal install ──
+    if (!name) {
+      console.error("✗ Server name is required. Usage: mcphubs install <name> [url] [-- command args...]");
+      process.exit(1);
+    }
+
+    const transport = opts.transport;
+    const body: Record<string, any> = { name, transport };
+
+    if (transport === "stdio") {
+      // Everything after "--" is the command + args
+      const rawArgs = cmd.parent?.args || [];
+      const ddIdx = process.argv.indexOf("--");
+      if (ddIdx === -1) {
+        console.error(
+          "✗ stdio transport requires a command after --\n" +
+          "  Example: mcphubs install my-server -- npx -y @example/mcp-server"
+        );
+        process.exit(1);
+      }
+      const cmdParts = process.argv.slice(ddIdx + 1);
+      if (cmdParts.length === 0) {
+        console.error("✗ No command specified after --");
+        process.exit(1);
+      }
+      body.command = cmdParts[0];
+      body.args = cmdParts.slice(1);
+    } else {
+      // sse / streamable-http: url is required
+      if (!url) {
+        console.error(`✗ URL is required for ${transport} transport.\n  Example: mcphubs install --transport ${transport} my-server https://example.com/mcp`);
+        process.exit(1);
+      }
+      body.url = url;
+    }
+
+    // --env KEY=VAL (repeatable)
+    if (opts.env.length > 0) {
+      const env: Record<string, string> = {};
+      for (const pair of opts.env) {
+        const eq = pair.indexOf("=");
+        if (eq === -1) {
+          console.error(`✗ Invalid --env "${pair}". Use KEY=VAL format.`);
+          process.exit(1);
+        }
+        env[pair.slice(0, eq)] = pair.slice(eq + 1);
+      }
+      body.env = env;
+    }
+
+    // --header "Key: Val" (repeatable)
+    if (opts.header.length > 0) {
+      const headers: Record<string, string> = {};
+      for (const h of opts.header) {
+        const sep = h.indexOf(":");
+        if (sep === -1) {
+          console.error(`✗ Invalid --header "${h}". Use "Key: Val" format.`);
+          process.exit(1);
+        }
+        headers[h.slice(0, sep).trim()] = h.slice(sep + 1).trim();
+      }
+      body.headers = headers;
+    }
+
+    if (opts.desc) {
+      body.description = opts.desc;
+    }
+
+    // Register
+    const info = await client.registerServer(body);
+    console.log(`✓ Registered ${info.name} (${info.transport})`);
+
+    // Auto-test connectivity
+    if (opts.test !== false) {
+      process.stdout.write("  Testing connectivity...");
+      const test = await client.testServer(name);
+      if (test.connected) {
+        console.log(` ✓ connected (${test.elapsed_ms}ms, ${test.tools_count} tools)`);
+      } else {
+        console.log(` ✗ failed: ${test.error}`);
+      }
+    }
+  });
+
+// ─── remove ────────────────────────────────────────
+
+program
+  .command("remove <name>")
+  .description("Unregister a MCP Server")
+  .action(async (name: string) => {
+    const client = getClient();
+    const result = await client.removeServer(name);
+    console.log(`✓ ${result.message || `Removed ${name}`}`);
   });
 
 program.parse();

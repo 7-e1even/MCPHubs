@@ -58,11 +58,11 @@ Instead of dumping every tool into the system prompt, MCPHubs exposes a lean sur
 
 MCPHubs collapses all your MCP Servers into **3 meta-tools**:
 
-| Meta-Tool | Purpose |
-|---|---|
+| Meta-Tool      | Purpose                                                          |
+| -------------- | ---------------------------------------------------------------- |
 | `list_servers` | Discover MCP Servers (supports fuzzy search by name/description) |
-| `list_tools` | Inspect tools on a specific server |
-| `call_tool` | Invoke any tool on any server |
+| `list_tools`   | Inspect tools on a specific server                               |
+| `call_tool`    | Invoke any tool on any server                                    |
 
 The AI explores your tool ecosystem **on demand** — it calls `list_servers` to see what's available, drills into a server with `list_tools`, and invokes the right tool via `call_tool`. No upfront cost, no bloat.
 
@@ -72,15 +72,15 @@ The AI explores your tool ecosystem **on demand** — it calls `list_servers` to
 
 ## ✨ Features
 
-| | |
-|---|---|
-| 🎯 **Progressive Disclosure** | 3 meta-tools, infinite capabilities. Tools loaded on demand |
-| 🔀 **Multi-Protocol Gateway** | Unifies stdio, SSE, and Streamable HTTP behind one endpoint |
-| 🖥️ **Web Dashboard** | Modern Next.js UI for managing servers, bulk import/export |
-| 📦 **One-Click Import** | Auto-detects Claude Desktop, VS Code, and generic JSON configs |
-| 🤖 **LLM Descriptions** | Auto-generates server summaries via OpenAI-compatible APIs |
-| 🔐 **API Key Auth** | Bearer Token protection on the `/mcp` endpoint |
-| 🌟 **ModelScope Sync** | Import from [ModelScope MCP Marketplace](https://modelscope.cn/home) |
+|                              |                                                                      |
+| ---------------------------- | -------------------------------------------------------------------- |
+| 🎯 **Progressive Disclosure** | 3 meta-tools, infinite capabilities. Tools loaded on demand          |
+| 🔀 **Multi-Protocol Gateway** | Unifies stdio, SSE, and Streamable HTTP behind one endpoint          |
+| 🖥️ **Web Dashboard**          | Modern Next.js UI for managing servers, bulk import/export           |
+| 📦 **One-Click Import**       | Auto-detects Claude Desktop, VS Code, and generic JSON configs       |
+| 🤖 **LLM Descriptions**       | Auto-generates server summaries via OpenAI-compatible APIs           |
+| 🔐 **API Key Auth**           | Bearer Token protection on the `/mcp` endpoint                       |
+| 🌟 **ModelScope Sync**        | Import from [ModelScope MCP Marketplace](https://modelscope.cn/home) |
 
 <details>
 <summary><b>🌟 ModelScope Integration</b></summary>
@@ -208,16 +208,16 @@ That's it. Your AI now has access to **every tool on every server** through prog
 
 ## ⚙️ Configuration
 
-| Variable | Default | Description |
-|---|---|---|
-| `MCPHUBS_EXPOSURE_MODE` | `progressive` | `progressive` (3 meta-tools) or `full` (passthrough) |
-| `MCPHUBS_DATABASE_URL` | `postgresql+asyncpg://...` | PostgreSQL connection string |
-| `MCPHUBS_API_KEY` | *(empty)* | Bearer Token for `/mcp` (empty = no auth) |
-| `MCPHUBS_HOST` | `0.0.0.0` | Listen address |
-| `MCPHUBS_PORT` | `8000` | Listen port |
-| `MCPHUBS_JWT_SECRET` | *(random)* | JWT signing secret for dashboard |
-| `MCPHUBS_ADMIN_USERNAME` | `admin` | Dashboard admin username |
-| `MCPHUBS_ADMIN_PASSWORD` | `admin123` | Dashboard admin password |
+| Variable                 | Default                    | Description                                          |
+| ------------------------ | -------------------------- | ---------------------------------------------------- |
+| `MCPHUBS_EXPOSURE_MODE`  | `progressive`              | `progressive` (3 meta-tools) or `full` (passthrough) |
+| `MCPHUBS_DATABASE_URL`   | `postgresql+asyncpg://...` | PostgreSQL connection string                         |
+| `MCPHUBS_API_KEY`        | *(empty)*                  | Bearer Token for `/mcp` (empty = no auth)            |
+| `MCPHUBS_HOST`           | `0.0.0.0`                  | Listen address                                       |
+| `MCPHUBS_PORT`           | `8000`                     | Listen port                                          |
+| `MCPHUBS_JWT_SECRET`     | *(random)*                 | JWT signing secret for dashboard                     |
+| `MCPHUBS_ADMIN_USERNAME` | `admin`                    | Dashboard admin username                             |
+| `MCPHUBS_ADMIN_PASSWORD` | `admin123`                 | Dashboard admin password                             |
 
 ## 📡 Management API
 
