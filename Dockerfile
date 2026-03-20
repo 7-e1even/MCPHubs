@@ -25,12 +25,14 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 WORKDIR /app
 
-# 安装系统依赖（直接从源安装 nodejs 18.x 即可满足 Next.js standalone 需求，免去 NodeSource 和跨镜像复制的二进制兼容问题）
+# 安装系统依赖 + NodeSource Node 22（含 npm）
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       python3 python3-pip python3-venv \
-      gcc libpq-dev curl git unzip nodejs \
+      gcc libpq-dev curl git unzip \
       ca-certificates bash vim nano net-tools iputils-ping && \
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y nodejs && \
     ln -sf /usr/bin/python3 /usr/bin/python && \
     apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/*
 
