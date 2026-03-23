@@ -135,9 +135,12 @@ async def register_server(req: RegisterRequest, _user: str = Depends(get_current
     if req.name in _r():
         raise HTTPException(409, f"Server '{req.name}' 已存在")
 
-    cfg = MCPServerConfig(**req.model_dump())
-    info = await _r().register(cfg)
-    await _p().add_server(cfg)
+    cfg = MCPServerConfig(**req.model_dump(exclude_none=True))
+    try:
+        info = await _r().register(cfg)
+        await _p().add_server(cfg)
+    except Exception as e:
+        raise HTTPException(500, f"注册失败: {e}")
     return info
 
 

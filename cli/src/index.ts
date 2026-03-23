@@ -18,6 +18,9 @@ import { loadConfig, saveConfig, getConfigPath } from "./config.js";
 
 const program = new Command();
 
+// Save original argv before Commander strips "--"
+const rawArgv = [...process.argv];
+
 function getClient(): MCPHubsClient {
   const cfg = loadConfig();
   if (!cfg.token) {
@@ -32,7 +35,8 @@ function getClient(): MCPHubsClient {
 program
   .name("mcphubs")
   .description("CLI for MCPHubs — call MCP tools from your terminal")
-  .version("0.1.0");
+  .version("0.1.0")
+  .enablePositionalOptions();
 
 program.addHelpText("after", `
 Examples:
@@ -277,7 +281,8 @@ program
   .option("-d, --desc <text>", "Server description")
   .option("--no-test", "Skip connectivity test after install")
   .option("--from <file>", "Import from JSON config file (Claude/VSCode/generic)")
-  .allowUnknownOption(false)
+  .allowUnknownOption(true)
+  .allowExcessArguments(true)
   .action(async (name: string | undefined, url: string | undefined, opts: any, cmd: any) => {
     const client = getClient();
 
@@ -317,19 +322,27 @@ program
     const body: Record<string, any> = { name, transport };
 
     if (transport === "stdio") {
-      // Everything after "--" is the command + args
-      const rawArgs = cmd.parent?.args || [];
-      const ddIdx = process.argv.indexOf("--");
-      if (ddIdx === -1) {
-        console.error(
-          "✗ stdio transport requires a command after --\n" +
-          "  Example: mcphubs install my-server -- npx -y @example/mcp-server"
-        );
-        process.exit(1);
+      // Extract the command to run as a stdio MCP server.
+      // Strategy: try rawArgv first (Unix preserves "--"), then fallback
+      // to Commander's excess args (Windows npm wrapper strips "--").
+      let cmdParts: string[];
+      const ddIdx = rawArgv.indexOf("--");
+      if (ddIdx !== -1) {
+        // Unix / direct node invocation: "--" is preserved
+        cmdParts = rawArgv.slice(ddIdx + 1);
+      } else {
+        // Windows npm wrapper strips "--": use Commander's remaining args.
+        // cmd.args contains all positional args passed to this subcommand.
+        // The first one is `name` (already consumed), so the rest is the command.
+        const remaining = cmd.args.slice(1); // skip name
+        cmdParts = remaining;
       }
-      const cmdParts = process.argv.slice(ddIdx + 1);
       if (cmdParts.length === 0) {
-        console.error("✗ No command specified after --");
+        console.error(
+          "✗ stdio transport requires a command after the server name\n" +
+          "  Example: mcphubs install my-server -- npx -y @example/mcp-server\n" +
+          "  Windows: mcphubs install my-server npx -y @example/mcp-server"
+        );
         process.exit(1);
       }
       body.command = cmdParts[0];
